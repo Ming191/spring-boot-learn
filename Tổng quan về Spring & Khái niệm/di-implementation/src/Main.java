@@ -1,4 +1,3 @@
-
 public static class A {
     private final IDependency dependency;
     A(IDependency dependency) {
