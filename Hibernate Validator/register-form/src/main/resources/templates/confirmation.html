@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Confirmation</title>
+</head>
+<body>
+<h1>Confirmation Form</h1>
+<hr>
+<div>
+    <p><strong>Mail:</strong> <span th:text="${registerForm.mail}"></span></p>
+    <p><strong>Username:</strong> <span th:text="${registerForm.username}"></span></p>
+    <p><strong>Status:</strong> Done!</p>
+</div>
+<a th:href="@{/user/register-form}">Back to register form </a>
+</body>
+</html>
