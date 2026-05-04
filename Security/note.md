@@ -189,10 +189,10 @@ $ROLE\_SUPERUSER > ROLE\_ADMIN > ROLE\_USER$
 
 Với cấu trúc này, nếu một API yêu cầu quyền `ROLE_USER`, những người dùng sở hữu vai trò `ROLE_ADMIN` hoặc `ROLE_SUPERUSER` sẽ mặc nhiên vượt qua vòng kiểm tra bảo mật mà không cần khai báo trực tiếp quyền `ROLE_USER` trong cơ sở dữ liệu.
 
-Spring Security 6 giới thiệu chú thích `@EnableMethodSecurity`, thay thế cho `@EnableGlobalMethodSecurity` vốn đã bị **deprecated**.
+Spring Security 6 giới thiệu annotation `@EnableMethodSecurity`, thay thế cho `@EnableGlobalMethodSecurity` vốn đã bị **deprecated**.
 
 - Các tính năng cốt lõi được mặc định kích hoạt (không cần tham số `prePostEnabled = true`).
-- Chuyển dịch cơ chế xử lý từ các mô hình **Voter** cũ sang đối tượng `AuthorizationManager`, tận dụng sức mạnh của **Native AOP (Aspect-Oriented Programming)**.
+- Chuyển dịch cơ chế xử lý từ các mô hình **Voter** cũ sang đối tượng `AuthorizationManager`, tận dụng sức mạnh của **Native AOP**.
 
 Annotation `@PreAuthorize` cho phép thiết lập các chốt dựa trên **Spring Expression Language (SpEL)** ngay trên các hàm nghiệp vụ. Điều này giúp bảo vệ hệ thống khỏi lỗ hổng **IDOR (Insecure Direct Object Reference)**.
 
