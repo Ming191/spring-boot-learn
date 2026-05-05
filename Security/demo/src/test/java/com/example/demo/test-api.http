@@ -1,0 +1,16 @@
+GET http://localhost:8080/api/public
+
+###
+GET http://localhost:8080/api/private
+
+###
+GET http://localhost:8080/api/private
+Authorization: Basic Ym9zczoxMjM=
+
+###
+GET http://localhost:8080/api/users
+Authorization: Basic bWluaDoxMjM=
+
+###
+GET http://localhost:8080/api/users
+Authorization: Basic Ym9zczoxMjM=
