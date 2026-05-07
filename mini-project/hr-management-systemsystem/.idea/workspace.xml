@@ -4,9 +4,18 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="899bff69-c7bc-4780-b6ab-6ea078e3f52d" name="Changes" comment="restructure Gradle project for HR Management System, reinstate shared configurations and update wrapper files">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/settings.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/settings.gradle" afterDir="false" />
+    <list default="true" id="899bff69-c7bc-4780-b6ab-6ea078e3f52d" name="Changes" comment="migrate to multi-module Gradle project structure with shared configurations, remove outdated HR Management System application">
+      <change beforePath="$PROJECT_DIR$/../../Unit Testing/note.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../hr-management-system/.idea/dataSources/data_sources_history.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../hr-management-system/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../hr-management-system/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitattributes" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.jar" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.properties" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradlew" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradlew.bat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/settings.gradle" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -14,13 +23,11 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="19" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
-      <ProjectState />
-    </projectState>
-    <projectState path="$PROJECT_DIR$/discovery-service">
       <ProjectState />
     </projectState>
   </component>
@@ -57,26 +64,26 @@
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
   </component>
-  <component name="GitHubPullRequestSearchHistory">{
-  &quot;lastFilter&quot;: {
-    &quot;state&quot;: &quot;OPEN&quot;,
-    &quot;assignee&quot;: &quot;Ming191&quot;
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "Ming191"
   }
-}</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/Ming191/spring-boot-learn.git&quot;,
-    &quot;accountId&quot;: &quot;011047df-298b-45ed-969b-dd2cf6303274&quot;
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/Ming191/spring-boot-learn.git",
+    "accountId": "011047df-298b-45ed-969b-dd2cf6303274"
   }
-}</component>
+}]]></component>
   <component name="McpProjectServerCommands">
     <commands />
     <urls />
   </component>
-  <component name="ProjectColorInfo">{
-  &quot;associatedIndex&quot;: 2,
-  &quot;fromUser&quot;: false
-}</component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 2,
+  "fromUser": false
+}]]></component>
   <component name="ProjectId" id="3DOFeWyCZ6pA9hpYZCwgFToOHJo" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -137,19 +144,16 @@
       <GradleCoverageDisabled>false</GradleCoverageDisabled>
       <method v="2" />
     </configuration>
-    <configuration name="DiscoveryServiceApplication (1)" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
-      <module name="hr-management-system.discovery-service.main" />
-      <option name="SPRING_BOOT_MAIN_CLASS" value="vn.amela.discoveryservice.DiscoveryServiceApplication" />
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="hr-management-system" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="DiscoveryServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
-      <module name="discovery-service.main" />
-      <option name="SPRING_BOOT_MAIN_CLASS" value="vn.amela.discoveryservice.DiscoveryServiceApplication" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="hr-management-system" />
+      <option name="filePath" />
+      <method v="2" />
     </configuration>
     <configuration name="HrManagementSystemsystemApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <module name="hr-management-systemsystem.main" />
@@ -171,8 +175,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1778145309244</updated>
-      <workItem from="1778145310322" duration="586000" />
-      <workItem from="1778146002126" duration="298000" />
+      <workItem from="1778145310322" duration="689000" />
     </task>
     <task id="LOCAL-00001" summary="initialize Spring Boot project for HR Management System with Gradle setup, basic structure, and Eureka client integration">
       <option name="closed" value="true" />
@@ -190,15 +193,7 @@
       <option name="project" value="LOCAL" />
       <updated>1778145865605</updated>
     </task>
-    <task id="LOCAL-00003" summary="restructure Gradle project for HR Management System, reinstate shared configurations and update wrapper files">
-      <option name="closed" value="true" />
-      <created>1778146064270</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1778146064270</updated>
-    </task>
-    <option name="localTasksCounter" value="4" />
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -207,7 +202,6 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="initialize Spring Boot project for HR Management System with Gradle setup, basic structure, and Eureka client integration" />
     <MESSAGE value="migrate to multi-module Gradle project structure with shared configurations, remove outdated HR Management System application" />
-    <MESSAGE value="restructure Gradle project for HR Management System, reinstate shared configurations and update wrapper files" />
-    <option name="LAST_COMMIT_MESSAGE" value="restructure Gradle project for HR Management System, reinstate shared configurations and update wrapper files" />
+    <option name="LAST_COMMIT_MESSAGE" value="migrate to multi-module Gradle project structure with shared configurations, remove outdated HR Management System application" />
   </component>
 </project>
