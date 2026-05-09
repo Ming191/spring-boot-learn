@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,8 +25,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
         String authorizationHeader = request.getHeader("Authorization");
@@ -59,6 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             } else {
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+                return;
              }
         } catch (JwtException | IllegalArgumentException e) {
             SecurityContextHolder.clearContext();

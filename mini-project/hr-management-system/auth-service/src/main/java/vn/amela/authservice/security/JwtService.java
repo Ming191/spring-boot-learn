@@ -1,7 +1,6 @@
 package vn.amela.authservice.security;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,7 +50,7 @@ public class JwtService {
     }
 
     public String extractUsername(String token) {
-        return extractClaims(token).getSubject();
+        return extractClaims(token).get("username", String.class);
     }
 
     public String extractRole(String token) {
