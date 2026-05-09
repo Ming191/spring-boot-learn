@@ -56,4 +56,13 @@
         where email = #{email}
     </select>
 
+    <select id="selectByUserNameOrEmail"
+            resultMap="userResultMap">
+        SELECT *
+        from users
+        where username = #{usernameOrEmail}
+           OR email = #{usernameOrEmail}
+        LIMIT 1
+    </select>
+
 </mapper>   

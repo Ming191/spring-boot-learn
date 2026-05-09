@@ -9,5 +9,7 @@ public interface UserMapper {
 
     User selectByEmail(String email);
 
-    int insert(User user);
+    void insert(User user);
+
+    User selectByUserNameOrEmail(String usernameOrEmail);
 }

@@ -5,20 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="899bff69-c7bc-4780-b6ab-6ea078e3f52d" name="Changes" comment="initialize discovery-service module with Spring Boot and Eureka server setup">
-      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/config/SecurityConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/controller/AuthController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/dto/request/RegisterRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/dto/response/UserResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/entity/User.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/entity/enums/Role.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/mapper/UserMapper.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/service/AuthService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/auth-service/src/main/resources/mappers/UserMapper.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/auth-service/src/test/java/vn/amela/authservice/AuthServiceApplicationTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/auth-service/src/test/java/vn/amela/authservice/RegisterRQ.http" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/dto/request/LoginRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/dto/response/TokenResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/security/JwtAuthenticationFilter.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/security/JwtService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/config/SecurityConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/controller/AuthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/dto/request/RegisterRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/dto/request/RegisterRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/entity/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/entity/User.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/mapper/UserMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/mapper/UserMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/java/vn/amela/authservice/service/AuthService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/application.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/application.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/main/resources/mappers/UserMapper.xml" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/main/resources/mappers/UserMapper.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/test/java/vn/amela/authservice/AuthServiceApplicationTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/test/java/vn/amela/authservice/AuthServiceApplicationTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth-service/src/test/java/vn/amela/authservice/RegisterRQ.http" beforeDir="false" afterPath="$PROJECT_DIR$/auth-service/src/test/java/vn/amela/authservice/Test.http" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -114,6 +115,7 @@
     "Gradle.Build hr-management-system.executor": "Run",
     "Gradle.hr-management-systemsystem [test].executor": "Run",
     "HTTP Request.RegisterRQ | #1.executor": "Run",
+    "HTTP Request.Test | #2.executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RequestMappingsPanelOrder0": "0",
     "RequestMappingsPanelOrder1": "1",
@@ -175,6 +177,7 @@
           <value>
             <map>
               <entry key="RegisterRQ | #1" value="STOPPED" />
+              <entry key="Test | #2" value="STOPPED" />
             </map>
           </value>
         </entry>
@@ -189,7 +192,7 @@
       </map>
     </option>
   </component>
-  <component name="RunManager" selected="HTTP Request.RegisterRQ | #1">
+  <component name="RunManager" selected="HTTP Request.Test | #3">
     <configuration name="AuthServiceApplicationTests" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
@@ -217,32 +220,13 @@
       <GradleCoverageDisabled>false</GradleCoverageDisabled>
       <method v="2" />
     </configuration>
-    <configuration name="hr-management-systemsystem [test]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
-      <ExternalSystemSettings>
-        <option name="executionName" />
-        <option name="externalProjectPath" value="$PROJECT_DIR$" />
-        <option name="externalSystemIdString" value="GRADLE" />
-        <option name="scriptParameters" value="" />
-        <option name="taskDescriptions">
-          <list />
-        </option>
-        <option name="taskNames">
-          <list>
-            <option value="test" />
-          </list>
-        </option>
-        <option name="vmOptions" />
-      </ExternalSystemSettings>
-      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
-      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
-      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
-      <DebugAllEnabled>false</DebugAllEnabled>
-      <RunAsTest>false</RunAsTest>
-      <GradleProfilingDisabled>false</GradleProfilingDisabled>
-      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+    <configuration name="RegisterRQ | #1" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" temporary="true" nameIsGenerated="true" path="$PROJECT_DIR$/auth-service/src/test/java/vn/amela/authservice/RegisterRQ.http" executionIdentifier="#1" runType="Run single request">
       <method v="2" />
     </configuration>
-    <configuration name="RegisterRQ | #1" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" temporary="true" nameIsGenerated="true" path="$PROJECT_DIR$/auth-service/src/test/java/vn/amela/authservice/RegisterRQ.http" executionIdentifier="#1" runType="Run single request">
+    <configuration name="Test | #2" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" temporary="true" nameIsGenerated="true" path="$PROJECT_DIR$/auth-service/src/test/java/vn/amela/authservice/Test.http" executionIdentifier="#2" index="2" runType="Run single request">
+      <method v="2" />
+    </configuration>
+    <configuration name="Test | #3" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" temporary="true" nameIsGenerated="true" path="$PROJECT_DIR$/auth-service/src/test/java/vn/amela/authservice/Test.http" executionIdentifier="#3" index="3" runType="Run single request">
       <method v="2" />
     </configuration>
     <configuration name="AuthServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
@@ -277,10 +261,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="HTTP Request.Test | #3" />
+        <item itemvalue="HTTP Request.Test | #2" />
         <item itemvalue="HTTP Request.RegisterRQ | #1" />
         <item itemvalue="Gradle.AuthServiceApplicationTests" />
         <item itemvalue="Docker.docker-compose.yml: Compose Deployment" />
-        <item itemvalue="Gradle.hr-management-systemsystem [test]" />
       </list>
     </recent_temporary>
   </component>
@@ -306,7 +291,7 @@
       <workItem from="1778309537425" duration="1617000" />
       <workItem from="1778314381689" duration="3174000" />
       <workItem from="1778321862184" duration="771000" />
-      <workItem from="1778335216475" duration="3494000" />
+      <workItem from="1778335216475" duration="9922000" />
     </task>
     <task id="LOCAL-00001" summary="initialize Spring Boot project for HR Management System with Gradle setup, basic structure, and Eureka client integration">
       <option name="closed" value="true" />
@@ -351,6 +336,6 @@
     <MESSAGE value="migrate to multi-module Gradle project structure with shared configurations, remove outdated HR Management System application" />
     <MESSAGE value="restructure Gradle project for HR Management System, reinstate shared configurations and update wrapper files" />
     <MESSAGE value="initialize discovery-service module with Spring Boot and Eureka server setup" />
-    <option name="LAST_COMMIT_MESSAGE" value="initialize discovery-service module with Spring Boot and Eureka server setup" />
+    <option name="LAST_COMMIT_MESSAGE" value="" />
   </component>
 </project>

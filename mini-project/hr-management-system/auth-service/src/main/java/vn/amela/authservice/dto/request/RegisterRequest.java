@@ -8,6 +8,7 @@ import vn.amela.authservice.entity.enums.Role;
 
 @Data
 public class RegisterRequest {
+
     @NotBlank( message = "Username is required")
     @Size(min = 3, max = 20, message = "Username must be between 3 and 20 characters")
     private String username;
@@ -24,6 +25,5 @@ public class RegisterRequest {
     @NotBlank( message = "Full name is required")
     @Size(min = 3, max = 100, message = "Full name must be between 3 and 100 characters")
     private String fullName;
-
-    private Role role = Role.EMPLOYEE;
+    
 }
