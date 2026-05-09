@@ -34,9 +34,9 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<?> me(Authentication authentication) {
         return ResponseEntity.ok(Map.of(
-                "username", authentication.getName(),
-                "authorities", authentication.getAuthorities(),
-                "userId", Objects.requireNonNull(authentication.getDetails())
+            "username", authentication.getName(),
+            "authorities", authentication.getAuthorities(),
+            "userId", Objects.requireNonNull(authentication.getDetails())
         ));
     }
 }

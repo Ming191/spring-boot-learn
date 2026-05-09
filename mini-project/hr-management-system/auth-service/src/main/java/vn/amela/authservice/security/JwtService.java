@@ -26,23 +26,23 @@ public class JwtService {
         Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
-                .subject(String.valueOf(user.getId()))
-                .claim("username", user.getUsername())
-                .claim("role", user.getRole().name())
-                .issuer("hr-auth-service")
-                .issuedAt(now)
-                .expiration(expiry)
-                .id(UUID.randomUUID().toString())
-                .signWith(getKey())
-                .compact();
+            .subject(String.valueOf(user.getId()))
+            .claim("username", user.getUsername())
+            .claim("role", user.getRole().name())
+            .issuer("hr-auth-service")
+            .issuedAt(now)
+            .expiration(expiry)
+            .id(UUID.randomUUID().toString())
+            .signWith(getKey())
+            .compact();
     }
 
     public Claims extractClaims(String token) {
         return Jwts.parser()
-                .verifyWith(getKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+            .verifyWith(getKey())
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
     }
 
     public Long extractId(String token) {

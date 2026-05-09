@@ -21,28 +21,28 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
 
         http.csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/auth/register",
-                                "/api/auth/login",
-                                "/actuator/health",
-                                "/actuator/info"
-                        ).permitAll()
-                        .requestMatchers("/api/auth/admin/**").hasRole("HR")
-                        .anyRequest().authenticated()
-                )
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                )
-                .httpBasic(AbstractHttpConfigurer::disable)
-                .formLogin(AbstractHttpConfigurer::disable);
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                    "/api/auth/register",
+                    "/api/auth/login",
+                    "/actuator/health",
+                    "/actuator/info"
+                ).permitAll()
+                .requestMatchers("/api/auth/admin/**").hasRole("HR")
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(
+                jwtAuthenticationFilter,
+                UsernamePasswordAuthenticationFilter.class
+            )
+            .httpBasic(AbstractHttpConfigurer::disable)
+            .formLogin(AbstractHttpConfigurer::disable);
 
         return http.build();
     }

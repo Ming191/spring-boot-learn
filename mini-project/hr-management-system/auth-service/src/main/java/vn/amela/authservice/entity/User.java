@@ -2,7 +2,6 @@ package vn.amela.authservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import vn.amela.authservice.entity.enums.Role;
 
 import java.time.LocalDateTime;

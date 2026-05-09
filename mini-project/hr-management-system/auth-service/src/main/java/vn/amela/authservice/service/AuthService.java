@@ -32,15 +32,15 @@ public class AuthService {
 
         if (userMapper.selectByUserName(username) != null) {
             throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Username already exists"
+                HttpStatus.CONFLICT,
+                "Username already exists"
             );
         }
 
         if (userMapper.selectByEmail(email) != null) {
             throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Email already exists"
+                HttpStatus.CONFLICT,
+                "Email already exists"
             );
         }
 
@@ -78,9 +78,9 @@ public class AuthService {
         String accessToken = jwtService.generateAccessToken(user);
 
         return new TokenResponse(
-                accessToken,
-                TOKEN_PREFIX,
-                jwtService.getExpirationSeconds()
+            accessToken,
+            TOKEN_PREFIX,
+            jwtService.getExpirationSeconds()
         );
     }
 }
