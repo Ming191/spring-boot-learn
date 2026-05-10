@@ -12,6 +12,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import vn.amela.authservice.security.JwtAuthenticationFilter;
+import vn.amela.authservice.security.handler.CustomAccessDeniedHandler;
+import vn.amela.authservice.security.handler.CustomAuthenticationEntryPoint;
 
 @Configuration
 @EnableMethodSecurity
@@ -19,6 +21,8 @@ import vn.amela.authservice.security.JwtAuthenticationFilter;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final CustomAccessDeniedHandler accessDeniedHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) {
@@ -32,7 +36,6 @@ public class SecurityConfig {
                     "/api/auth/register",
                     "/api/auth/login",
                     "/api/auth/refresh",
-                    "/api/auth/logout",
                     "/actuator/health",
                     "/actuator/info"
                 ).permitAll()
@@ -44,7 +47,12 @@ public class SecurityConfig {
                 UsernamePasswordAuthenticationFilter.class
             )
             .httpBasic(AbstractHttpConfigurer::disable)
-            .formLogin(AbstractHttpConfigurer::disable);
+            .formLogin(AbstractHttpConfigurer::disable)
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(authenticationEntryPoint)
+                .accessDeniedHandler(accessDeniedHandler)
+            )
+        ;
 
         return http.build();
     }

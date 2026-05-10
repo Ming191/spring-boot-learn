@@ -70,7 +70,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    @DisplayName("returns 401 and clears context for invalid JWT")
+    @DisplayName("marks request and clears context for invalid JWT")
     void rejectsInvalidJwt() throws Exception {
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtService);
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -82,13 +82,13 @@ class JwtAuthenticationFilterTest {
 
         filter.doFilter(request, response, filterChain);
 
-        assertThat(response.getStatus()).isEqualTo(401);
-        assertThat(response.getErrorMessage()).isEqualTo("Invalid token");
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(request.getAttribute("auth_error")).isEqualTo("bad token");
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
     @Test
-    @DisplayName("returns 401 when required JWT claims are missing")
+    @DisplayName("marks request when required JWT claims are missing")
     void rejectsMissingClaims() throws Exception {
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtService);
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -103,7 +103,8 @@ class JwtAuthenticationFilterTest {
 
         filter.doFilter(request, response, filterChain);
 
-        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(request.getAttribute("auth_error")).isEqualTo("Required JWT claims are missing");
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 }
