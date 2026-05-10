@@ -27,6 +27,14 @@
         FROM users
         WHERE username = #{username}
     </select>
+
+    <select id="selectById"
+            resultMap="userResultMap">
+        SELECT *
+        FROM users
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
     
     <insert id="insert"
             useGeneratedKeys="true"

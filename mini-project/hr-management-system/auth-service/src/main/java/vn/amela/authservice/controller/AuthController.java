@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import vn.amela.authservice.dto.request.LoginRequest;
+import vn.amela.authservice.dto.request.RefreshRequest;
 import vn.amela.authservice.dto.request.RegisterRequest;
 import vn.amela.authservice.dto.response.TokenResponse;
 import vn.amela.authservice.dto.response.UserResponse;
@@ -38,5 +39,22 @@ public class AuthController {
             "authorities", authentication.getAuthorities(),
             "userId", Objects.requireNonNull(authentication.getDetails())
         ));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponse> refresh(
+        @Valid @RequestBody RefreshRequest request
+    ) {
+        return ResponseEntity.ok(
+            authService.refresh(request)
+        );
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+        @Valid @RequestBody RefreshRequest request
+    ) {
+        authService.logout(request);
+        return ResponseEntity.noContent().build();
     }
 }
