@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     CONSTRAINT fk_refresh_user FOREIGN KEY (user_id) REFERENCES users (id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE UNIQUE INDEX uk_refresh_token_hash ON refresh_tokens (token_hash);
 CREATE INDEX idx_refresh_user_id         ON refresh_tokens (user_id);

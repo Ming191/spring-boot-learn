@@ -3,13 +3,13 @@ package vn.amela.authservice.service;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.dao.DuplicateKeyException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.server.ResponseStatusException;
 import vn.amela.authservice.dto.request.LoginRequest;
 import vn.amela.authservice.dto.request.RefreshRequest;
 import vn.amela.authservice.dto.request.RegisterRequest;
@@ -18,6 +18,7 @@ import vn.amela.authservice.dto.response.UserResponse;
 import vn.amela.authservice.entity.RefreshToken;
 import vn.amela.authservice.entity.User;
 import vn.amela.authservice.entity.enums.Role;
+import vn.amela.authservice.exception.AuthException;
 import vn.amela.authservice.mapper.RefreshTokenMapper;
 import vn.amela.authservice.mapper.UserMapper;
 import vn.amela.authservice.security.JwtService;
@@ -89,6 +90,7 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.register(request),
             HttpStatus.CONFLICT,
+            "DUPLICATE_RESOURCE",
             "Username already exists"
         );
 
@@ -104,10 +106,28 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.register(request),
             HttpStatus.CONFLICT,
+            "DUPLICATE_RESOURCE",
             "Email already exists"
         );
 
         verify(userMapper, never()).insert(any(User.class));
+    }
+
+    @Test
+    @DisplayName("register maps duplicate database constraint to conflict")
+    void registerHandlesDuplicateConstraintRace() {
+        RegisterRequest request = registerRequest("emp_test", "emp_test@company.com", "Employee Test");
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
+        doAnswer(invocation -> {
+            throw new DuplicateKeyException("Duplicate entry for uk_users_email");
+        }).when(userMapper).insert(any(User.class));
+
+        assertStatus(
+            () -> authService.register(request),
+            HttpStatus.CONFLICT,
+            "DUPLICATE_RESOURCE",
+            "Email already exists"
+        );
     }
 
     @Test
@@ -139,7 +159,8 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.login(request),
             HttpStatus.UNAUTHORIZED,
-            "Invalid username or password"
+            "INVALID_CREDENTIALS",
+            "Invalid username/email or password"
         );
     }
 
@@ -154,7 +175,8 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.login(request),
             HttpStatus.UNAUTHORIZED,
-            "Invalid username or password"
+            "INVALID_CREDENTIALS",
+            "Invalid username/email or password"
         );
 
         verify(refreshTokenMapper, never()).revokeAllByUserId(user.getId());
@@ -172,6 +194,7 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.login(request),
             HttpStatus.FORBIDDEN,
+            "INACTIVE_USER",
             "User is inactive"
         );
 
@@ -206,6 +229,7 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.refresh(refreshRequest("  ")),
             HttpStatus.BAD_REQUEST,
+            "VALIDATION_ERROR",
             "Refresh token is required"
         );
     }
@@ -218,6 +242,7 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.refresh(refreshRequest("raw-refresh")),
             HttpStatus.UNAUTHORIZED,
+            "INVALID_TOKEN",
             "Invalid refresh token"
         );
     }
@@ -232,6 +257,7 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.refresh(refreshRequest("raw-refresh")),
             HttpStatus.UNAUTHORIZED,
+            "TOKEN_REVOKED",
             "Invalid refresh token"
         );
 
@@ -248,6 +274,7 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.refresh(refreshRequest("raw-refresh")),
             HttpStatus.UNAUTHORIZED,
+            "TOKEN_EXPIRED",
             "Invalid refresh token"
         );
 
@@ -264,6 +291,7 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.refresh(refreshRequest("raw-refresh")),
             HttpStatus.UNAUTHORIZED,
+            "INVALID_TOKEN",
             "Invalid refresh token"
         );
 
@@ -283,6 +311,7 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.refresh(refreshRequest("raw-refresh")),
             HttpStatus.FORBIDDEN,
+            "INACTIVE_USER",
             "User is inactive"
         );
 
@@ -302,6 +331,7 @@ class AuthServiceTest {
         assertStatus(
             () -> authService.refresh(refreshRequest("raw-refresh")),
             HttpStatus.UNAUTHORIZED,
+            "TOKEN_REVOKED",
             "Invalid refresh token"
         );
 
@@ -380,11 +410,12 @@ class AuthServiceTest {
         return refreshToken;
     }
 
-    private static void assertStatus(Runnable action, HttpStatus status, String reason) {
+    private static void assertStatus(Runnable action, HttpStatus status, String code, String reason) {
         assertThatThrownBy(action::run)
-            .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
-                assertThat(exception.getStatusCode()).isEqualTo(status);
-                assertThat(exception.getReason()).isEqualTo(reason);
+            .isInstanceOfSatisfying(AuthException.class, exception -> {
+                assertThat(exception.getStatus()).isEqualTo(status);
+                assertThat(exception.getCode()).isEqualTo(code);
+                assertThat(exception.getMessage()).isEqualTo(reason);
             });
     }
 }

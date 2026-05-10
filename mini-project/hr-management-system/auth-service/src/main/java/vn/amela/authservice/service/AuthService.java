@@ -1,8 +1,7 @@
 package vn.amela.authservice.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +13,13 @@ import vn.amela.authservice.dto.response.UserResponse;
 import vn.amela.authservice.entity.RefreshToken;
 import vn.amela.authservice.entity.User;
 import vn.amela.authservice.entity.enums.Role;
+import vn.amela.authservice.exception.DuplicateResourceException;
+import vn.amela.authservice.exception.InactiveUserException;
+import vn.amela.authservice.exception.InvalidCredentialsException;
+import vn.amela.authservice.exception.InvalidRequestException;
+import vn.amela.authservice.exception.InvalidTokenException;
+import vn.amela.authservice.exception.TokenExpiredException;
+import vn.amela.authservice.exception.TokenRevokedException;
 import vn.amela.authservice.mapper.RefreshTokenMapper;
 import vn.amela.authservice.mapper.UserMapper;
 import vn.amela.authservice.security.JwtService;
@@ -42,17 +48,11 @@ public class AuthService {
         Role role = Role.EMPLOYEE;
 
         if (userMapper.selectByUserName(username) != null) {
-            throw new ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "Username already exists"
-            );
+            throw new DuplicateResourceException("Username already exists");
         }
 
         if (userMapper.selectByEmail(email) != null) {
-            throw new ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "Email already exists"
-            );
+            throw new DuplicateResourceException("Email already exists");
         }
 
         User user = new User();
@@ -63,7 +63,11 @@ public class AuthService {
         user.setRole(role);
         user.setIsActive(true);
 
-        userMapper.insert(user);
+        try {
+            userMapper.insert(user);
+        } catch (DuplicateKeyException exception) {
+            throw duplicateFromConstraint(exception);
+        }
 
         return UserResponse.builder()
             .id(user.getId())
@@ -82,11 +86,11 @@ public class AuthService {
         User user = userMapper.selectByUserNameOrEmail(usernameOrEmail);
 
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
+            throw new InvalidCredentialsException();
         }
 
         if (!user.getIsActive()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is inactive");
+            throw new InactiveUserException();
         }
 
         refreshTokenMapper.revokeAllByUserId(user.getId());
@@ -110,35 +114,35 @@ public class AuthService {
 
         RefreshToken storedToken = refreshTokenMapper.selectByTokenHash(tokenHash);
         if (storedToken == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_REFRESH_TOKEN);
+            throw new InvalidTokenException(INVALID_REFRESH_TOKEN);
         }
 
         if (storedToken.getRevokedAt() != null) {
             refreshTokenMapper.revokeAllByUserId(storedToken.getUserId());
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_REFRESH_TOKEN);
+            throw new TokenRevokedException(INVALID_REFRESH_TOKEN);
         }
 
         LocalDateTime now = LocalDateTime.now();
         if (storedToken.getExpiresAt() == null || storedToken.getExpiresAt().isBefore(now)) {
             refreshTokenMapper.revokeById(storedToken.getId());
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_REFRESH_TOKEN);
+            throw new TokenExpiredException(INVALID_REFRESH_TOKEN);
         }
 
         User user = userMapper.selectById(storedToken.getUserId());
         if (user == null) {
             refreshTokenMapper.revokeById(storedToken.getId());
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_REFRESH_TOKEN);
+            throw new InvalidTokenException(INVALID_REFRESH_TOKEN);
         }
 
         if (!user.getIsActive()) {
             refreshTokenMapper.revokeAllByUserId(user.getId());
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is inactive");
+            throw new InactiveUserException();
         }
 
         int revokedTokenCount = refreshTokenMapper.revokeById(storedToken.getId());
         if (revokedTokenCount != 1) {
             refreshTokenMapper.revokeAllByUserId(storedToken.getUserId());
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_REFRESH_TOKEN);
+            throw new TokenRevokedException(INVALID_REFRESH_TOKEN);
         }
 
         String accessToken = jwtService.generateAccessToken(user);
@@ -167,7 +171,7 @@ public class AuthService {
 
     private String extractRefreshToken(RefreshRequest request) {
         if (request == null || request.getRefreshToken() == null || request.getRefreshToken().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Refresh token is required");
+            throw new InvalidRequestException("Refresh token is required");
         }
         return request.getRefreshToken().trim();
     }
@@ -178,5 +182,19 @@ public class AuthService {
             return value.toLowerCase(Locale.ROOT);
         }
         return value;
+    }
+
+    private DuplicateResourceException duplicateFromConstraint(DuplicateKeyException exception) {
+        String message = exception.getMostSpecificCause().getMessage();
+        if (message != null) {
+            String normalizedMessage = message.toLowerCase(Locale.ROOT);
+            if (normalizedMessage.contains("username")) {
+                return new DuplicateResourceException("Username already exists");
+            }
+            if (normalizedMessage.contains("email")) {
+                return new DuplicateResourceException("Email already exists");
+            }
+        }
+        return new DuplicateResourceException("Username or email already exists");
     }
 }
