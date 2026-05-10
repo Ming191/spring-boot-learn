@@ -19,6 +19,7 @@ import vn.amela.authservice.mapper.UserMapper;
 import vn.amela.authservice.security.JwtService;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -33,10 +34,11 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final RefreshTokenMapper refreshTokenMapper;
 
+    @Transactional
     public UserResponse register(RegisterRequest request) {
 
         String username = request.getUsername().trim();
-        String email = request.getEmail().trim().toLowerCase();
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
         Role role = Role.EMPLOYEE;
 
         if (userMapper.selectByUserName(username) != null) {
@@ -57,7 +59,7 @@ public class AuthService {
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setEmail(email);
-        user.setFullName(request.getFullName());
+        user.setFullName(request.getFullName().trim());
         user.setRole(role);
         user.setIsActive(true);
 
@@ -73,9 +75,11 @@ public class AuthService {
             .build();
     }
 
+    @Transactional
     public TokenResponse login(LoginRequest request) {
 
-        User user = userMapper.selectByUserNameOrEmail(request.getUsernameOrEmail());
+        String usernameOrEmail = normalizeUsernameOrEmail(request.getUsernameOrEmail());
+        User user = userMapper.selectByUserNameOrEmail(usernameOrEmail);
 
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
@@ -131,7 +135,11 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is inactive");
         }
 
-        refreshTokenMapper.revokeById(storedToken.getId());
+        int revokedTokenCount = refreshTokenMapper.revokeById(storedToken.getId());
+        if (revokedTokenCount != 1) {
+            refreshTokenMapper.revokeAllByUserId(storedToken.getUserId());
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_REFRESH_TOKEN);
+        }
 
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = refreshTokenService.createRefreshToken(user);
@@ -162,5 +170,13 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Refresh token is required");
         }
         return request.getRefreshToken().trim();
+    }
+
+    private String normalizeUsernameOrEmail(String usernameOrEmail) {
+        String value = usernameOrEmail.trim();
+        if (value.contains("@")) {
+            return value.toLowerCase(Locale.ROOT);
+        }
+        return value;
     }
 }

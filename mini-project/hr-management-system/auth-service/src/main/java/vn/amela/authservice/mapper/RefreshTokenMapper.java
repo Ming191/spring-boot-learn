@@ -10,7 +10,7 @@ public interface RefreshTokenMapper {
 
     RefreshToken selectByTokenHash(String tokenHash);
 
-    void revokeById(Long id);
+    int revokeById(Long id);
 
-    void revokeAllByUserId(Long userId);
+    int revokeAllByUserId(Long userId);
 }

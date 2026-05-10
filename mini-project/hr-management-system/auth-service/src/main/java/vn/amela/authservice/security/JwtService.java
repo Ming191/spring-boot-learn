@@ -1,8 +1,10 @@
 package vn.amela.authservice.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import vn.amela.authservice.entity.User;
@@ -15,11 +17,19 @@ import java.util.UUID;
 @Service
 public class JwtService {
 
+    private static final String ISSUER = "hr-auth-service";
+    private SecretKey signingKey;
+
     @Value("${app.jwt.secret}")
     private String secret;
 
     @Value("${app.jwt.expiration-ms}")
     private long expirationMs;
+
+    @PostConstruct
+    public void init() {
+        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
 
     public String generateAccessToken(User user) {
         Date now = new Date();
@@ -29,7 +39,7 @@ public class JwtService {
             .subject(String.valueOf(user.getId()))
             .claim("username", user.getUsername())
             .claim("role", user.getRole().name())
-            .issuer("hr-auth-service")
+            .issuer(ISSUER)
             .issuedAt(now)
             .expiration(expiry)
             .id(UUID.randomUUID().toString())
@@ -40,6 +50,7 @@ public class JwtService {
     public Claims extractClaims(String token) {
         return Jwts.parser()
             .verifyWith(getKey())
+            .requireIssuer(ISSUER)
             .build()
             .parseSignedClaims(token)
             .getPayload();
@@ -58,8 +69,12 @@ public class JwtService {
     }
 
     public Boolean isTokenValid(String token) {
-        Claims claims = extractClaims(token);
-        return claims.getExpiration().after(new Date());
+        try {
+            Claims claims = extractClaims(token);
+            return claims.getExpiration().after(new Date());
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 
     public long getExpirationSeconds() {
@@ -67,6 +82,6 @@ public class JwtService {
     }
 
     private SecretKey getKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        return signingKey;
     }
 }

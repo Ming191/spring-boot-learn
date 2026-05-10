@@ -5,8 +5,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,27 +36,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = authorizationHeader.substring(7);
+        String token = authorizationHeader.substring(7).trim();
 
         try {
-            if (jwtService.isTokenValid(token)) {
+            if (!token.isBlank() && jwtService.isTokenValid(token)) {
                 Long userId = jwtService.extractId(token);
                 String username = jwtService.extractUsername(token);
                 String role = jwtService.extractRole(token);
+                if (username == null || username.isBlank() || role == null || role.isBlank()) {
+                    throw new IllegalArgumentException("Required JWT claims are missing");
+                }
 
                 List<SimpleGrantedAuthority> authorities = List.of(
                     new SimpleGrantedAuthority("ROLE_" + role)
                 );
 
-                UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
+                if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                    UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
                             username,
                             null,
                             authorities
-                    );
+                        );
 
-                authentication.setDetails(userId);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    authentication.setDetails(userId);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
 
             } else {
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
@@ -64,6 +69,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
              }
         } catch (JwtException | IllegalArgumentException e) {
             SecurityContextHolder.clearContext();
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+            return;
         }
         filterChain.doFilter(request, response);
     }
