@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="vn.amela.authservice.mapper.RefreshTokenMapper">
+
+    <resultMap id="RefreshTokenResultMap"
+               type="vn.amela.authservice.entity.RefreshToken">
+
+        <id property="id" column="id"/>
+
+        <result property="userId" column="user_id"/>
+        <result property="tokenHash" column="token_hash"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="revokedAt" column="revoked_at"/>
+
+    </resultMap>
+    <insert id="insert"
+            useGeneratedKeys="true"
+            keyProperty="id">
+
+        INSERT INTO refresh_tokens (
+            user_id,
+            token_hash,
+            expires_at
+        )
+        VALUES (
+            #{userId},
+            #{tokenHash},
+            #{expiresAt}
+        )
+
+    </insert>
+
+    <select id="selectByTokenHash"
+            resultMap="RefreshTokenResultMap">
+
+        SELECT *
+        FROM refresh_tokens
+        WHERE token_hash = #{tokenHash}
+        LIMIT 1
+
+    </select>
+
+    <update id="revokeById">
+
+        UPDATE refresh_tokens
+        SET revoked_at = NOW()
+        WHERE id = #{id}
+        AND revoked_at IS NULL
+
+    </update>
+
+    <update id="revokeAllByUserId">
+
+        UPDATE refresh_tokens
+        SET revoked_at = NOW()
+        WHERE user_id = #{userId}
+        AND revoked_at IS NULL
+
+    </update>
+
+</mapper>
