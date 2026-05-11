@@ -7,7 +7,7 @@ spring:
   cloud:
     gateway:
       server:
-        webmvc:
+        webflux:
           routes:
             - id: auth-service
               uri: lb://AUTH-SERVICE
@@ -25,6 +25,19 @@ spring:
                 - Path=/api/leaves/**
               filters:
                 - StripPrefix=1
+          globalcors:
+            corsConfigurations:
+              '[/**]':
+                allowedOrigins:
+                  - "localhost:3000"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders: "*"
+                allowCredentials: true
 
 eureka:
   client:
