@@ -17,19 +17,15 @@ spring:
               uri: lb://EMPLOYEE-SERVICE
               predicates:
                 - Path=/api/employees/**,/api/departments/**
-              filters:
-                - StripPrefix=1
             - id: leave-service
               uri: lb://LEAVE-SERVICE
               predicates:
                 - Path=/api/leaves/**
-              filters:
-                - StripPrefix=1
           globalcors:
             corsConfigurations:
               '[/**]':
                 allowedOrigins:
-                  - "localhost:3000"
+                  - "http://localhost:3000"
                 allowedMethods:
                   - GET
                   - POST
@@ -44,5 +40,31 @@ eureka:
     service-url:
       defaultZone: http://localhost:8761/eureka
 
-jwt:
-  secret: ${JWT_SECRET:local-dev-secret-key-must-be-at-least-32-characters}
+app:
+  jwt:
+    secret: ${JWT_SECRET:local-dev-secret-key-must-be-at-least-32-characters}
+    issuer: ${JWT_ISSUER:hr-auth-service}
+    audience: ${JWT_AUDIENCE:hr-management-system}
+
+gateway:
+  public-paths:
+    - /api/auth/login
+    - /api/auth/register
+    - /api/auth/refresh
+    - /actuator/health
+    - /actuator/info
+  authorization-rules:
+    - path: /api/auth/admin/**
+      roles: [HR]
+    - path: /api/employees/**
+      methods: [POST, PUT, DELETE]
+      roles: [HR]
+    - path: /api/departments/**
+      methods: [POST, PUT, DELETE]
+      roles: [HR]
+  rate-limit:
+    enabled: true
+    default-policy:
+      capacity: 60
+      refill-tokens: 60
+      refill-period: 1m
