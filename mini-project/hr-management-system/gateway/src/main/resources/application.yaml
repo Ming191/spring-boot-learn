@@ -62,9 +62,3 @@ gateway:
     - path: /api/departments/**
       methods: [POST, PUT, DELETE]
       roles: [HR]
-  rate-limit:
-    enabled: true
-    default-policy:
-      capacity: 60
-      refill-tokens: 60
-      refill-period: 1m
