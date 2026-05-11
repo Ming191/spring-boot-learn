@@ -127,7 +127,7 @@ class AuthenticationFilterTest {
     void employeeRoleCannotAccessHrOnlyEmployeeMutationPath() throws Exception {
         MockServerWebExchange exchange = MockServerWebExchange.from(
             MockServerHttpRequest.post("/api/employees")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(ISSUER, AUDIENCE, "EMPLOYEE"))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "EMPLOYEE"))
         );
         CapturingChain chain = new CapturingChain();
 
@@ -148,7 +148,7 @@ class AuthenticationFilterTest {
     void hrRoleCanAccessHrOnlyEmployeeMutationPath() {
         MockServerWebExchange exchange = MockServerWebExchange.from(
             MockServerHttpRequest.post("/api/employees")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(ISSUER, AUDIENCE, "HR"))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "HR"))
         );
         CapturingChain chain = new CapturingChain();
 
@@ -166,7 +166,7 @@ class AuthenticationFilterTest {
     void employeeRoleCannotAccessAuthAdminPath() throws Exception {
         MockServerWebExchange exchange = MockServerWebExchange.from(
             MockServerHttpRequest.get("/api/auth/admin/users")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(ISSUER, AUDIENCE, "EMPLOYEE"))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "EMPLOYEE"))
         );
         CapturingChain chain = new CapturingChain();
 
@@ -198,10 +198,10 @@ class AuthenticationFilterTest {
     }
 
     private static String accessToken(String audience) {
-        return accessToken(AuthenticationFilterTest.ISSUER, audience, "EMPLOYEE");
+        return accessToken(audience, "EMPLOYEE");
     }
 
-    private static String accessToken(String issuer, String audience, String role) {
+    private static String accessToken(String audience, String role) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + 900_000L);
 
@@ -210,7 +210,7 @@ class AuthenticationFilterTest {
             .claim("username", "emp")
             .claim("role", role)
             .audience().add(audience).and()
-            .issuer(issuer)
+            .issuer(AuthenticationFilterTest.ISSUER)
             .issuedAt(now)
             .notBefore(now)
             .expiration(expiry)
