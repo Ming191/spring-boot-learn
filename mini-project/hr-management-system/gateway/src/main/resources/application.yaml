@@ -4,23 +4,61 @@ server:
 spring:
   application:
     name: gateway
+  data:
+    redis:
+      host: localhost
+      port: 6379
   cloud:
     gateway:
       server:
         webflux:
           routes:
+            - id: auth-public
+              order: 0
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/auth/login,/api/auth/register,/api/auth/refresh
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@ipKeyResolver}"
+                    redis-rate-limiter.replenishRate: 2
+                    redis-rate-limiter.burstCapacity: 5
+                    redis-rate-limiter.requestedTokens: 1
             - id: auth-service
+              order: 10
               uri: lb://AUTH-SERVICE
               predicates:
                 - Path=/api/auth/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userKeyResolver}"
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                    redis-rate-limiter.requestedTokens: 1
             - id: employee-service
               uri: lb://EMPLOYEE-SERVICE
               predicates:
                 - Path=/api/employees/**,/api/departments/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userKeyResolver}"
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    redis-rate-limiter.requestedTokens: 1
             - id: leave-service
               uri: lb://LEAVE-SERVICE
               predicates:
                 - Path=/api/leaves/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userKeyResolver}"
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    redis-rate-limiter.requestedTokens: 1
           globalcors:
             corsConfigurations:
               '[/**]':
@@ -38,7 +76,7 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://localhost:8761/eureka/
 
 app:
   jwt:
@@ -47,6 +85,11 @@ app:
     audience: ${JWT_AUDIENCE:hr-management-system}
 
 gateway:
+  pre-auth-rate-limit:
+    enabled: true
+    replenish-rate: 30
+    burst-capacity: 60
+    requested-tokens: 1
   public-paths:
     - /api/auth/login
     - /api/auth/register
