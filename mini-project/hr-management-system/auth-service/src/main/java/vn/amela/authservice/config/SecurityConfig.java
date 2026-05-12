@@ -12,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import vn.amela.authservice.security.JwtAuthenticationFilter;
+import vn.amela.authservice.security.JwtService;
 import vn.amela.authservice.security.handler.CustomAccessDeniedHandler;
 import vn.amela.authservice.security.handler.CustomAuthenticationEntryPoint;
 
@@ -20,7 +21,7 @@ import vn.amela.authservice.security.handler.CustomAuthenticationEntryPoint;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtService jwtService;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
 
@@ -43,7 +44,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .addFilterBefore(
-                jwtAuthenticationFilter,
+                new JwtAuthenticationFilter(jwtService),
                 UsernamePasswordAuthenticationFilter.class
             )
             .httpBasic(AbstractHttpConfigurer::disable)

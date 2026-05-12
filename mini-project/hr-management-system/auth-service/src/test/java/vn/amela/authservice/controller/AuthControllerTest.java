@@ -61,6 +61,33 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("login without body returns bad request")
+    void loginWithoutBodyReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST_BODY"))
+            .andExpect(jsonPath("$.message").value("Request body is missing or invalid"))
+            .andExpect(jsonPath("$.path").value("/api/auth/login"))
+            .andExpect(jsonPath("$.errors", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("login with malformed JSON returns bad request")
+    void loginWithMalformedJsonReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{bad json"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST_BODY"))
+            .andExpect(jsonPath("$.message").value("Request body is missing or invalid"))
+            .andExpect(jsonPath("$.path").value("/api/auth/login"))
+            .andExpect(jsonPath("$.errors", hasSize(0)));
+    }
+
+    @Test
     @DisplayName("register returns standardized duplicate error response")
     void registerReturnsDuplicateErrorResponse() throws Exception {
         when(authService.register(any())).thenThrow(new DuplicateResourceException("Username already exists"));

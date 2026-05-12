@@ -26,6 +26,7 @@
         SELECT *
         FROM users
         WHERE username = #{username}
+        LIMIT 1
     </select>
 
     <select id="selectById"
@@ -62,6 +63,7 @@
         SELECT *
         from users
         where email = #{email}
+        LIMIT 1
     </select>
 
     <select id="selectByUserNameOrEmail"

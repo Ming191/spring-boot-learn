@@ -28,8 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     SecurityConfig.class,
     CustomAuthenticationEntryPoint.class,
     CustomAccessDeniedHandler.class,
-    SecurityErrorResponseWriter.class,
-    JwtAuthenticationFilter.class
+    SecurityErrorResponseWriter.class
 })
 class AuthSecurityTest {
 
