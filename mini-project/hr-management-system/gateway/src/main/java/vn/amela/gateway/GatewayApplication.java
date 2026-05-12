@@ -8,6 +8,11 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 @EnableDiscoveryClient
 public class GatewayApplication {
 
+    /**
+     * Starts the Spring Boot gateway application.
+     *
+     * @param args command-line arguments forwarded to the Spring Boot runtime
+     */
     public static void main(String[] args) {
         SpringApplication.run(GatewayApplication.class, args);
     }
