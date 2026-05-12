@@ -22,6 +22,30 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:8.6.3
+    container_name: hr_redis
+
+    restart: unless-stopped
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis_data:/data
+
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.7.0
     container_name: hr_zookeeper
@@ -61,3 +85,4 @@ services:
 
 volumes:
   mysql_data:
+  redis_data:
