@@ -18,6 +18,7 @@ import java.util.UUID;
 public class JwtService {
 
     private static final String ISSUER = "hr-auth-service";
+    private static final String AUDIENCE = "hr-management-system";
     private SecretKey signingKey;
 
     @Value("${app.jwt.secret}")
@@ -41,6 +42,7 @@ public class JwtService {
             .claim("role", user.getRole().name())
             .issuer(ISSUER)
             .issuedAt(now)
+            .audience().add(AUDIENCE).and()
             .expiration(expiry)
             .id(UUID.randomUUID().toString())
             .signWith(getKey())
