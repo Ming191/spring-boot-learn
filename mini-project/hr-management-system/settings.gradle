@@ -1,8 +1,10 @@
 rootProject.name = 'hr-management-system'
 
 include 'discovery-service'
+include 'gateway'
 //include 'web-service'
-//include 'auth-service'
 include 'employee-service'
+include 'auth-service'
+//include 'employee-service'
 //include 'leave-service'
 //include 'notification-service'
