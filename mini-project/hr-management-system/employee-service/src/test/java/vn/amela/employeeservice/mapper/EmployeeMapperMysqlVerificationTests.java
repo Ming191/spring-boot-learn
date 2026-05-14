@@ -9,6 +9,7 @@ import vn.amela.employeeservice.entity.Employee;
 import vn.amela.employeeservice.entity.enums.EmployeeStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,6 +30,22 @@ class EmployeeMapperMysqlVerificationTests {
 
         assertThat(employeeMapper.findByEmail("nguyen@company.com").getId()).isEqualTo(emp001.getId());
         assertThat(employeeMapper.findByAuthUserId(3L).getEmployeeCode()).isEqualTo("EMP001");
+
+        Employee newEmployee = new Employee();
+        newEmployee.setEmployeeCode("EMP999");
+        newEmployee.setFullName("Mapper Verification");
+        newEmployee.setEmail("mapper.verify@company.com");
+        newEmployee.setPhone("0987654321");
+        newEmployee.setPosition("QA Engineer");
+        newEmployee.setDepartmentId(1L);
+        newEmployee.setAuthUserId(999L);
+        newEmployee.setSalary(new BigDecimal("11000000.00"));
+        newEmployee.setStartDate(LocalDate.of(2026, 5, 14));
+        newEmployee.setStatus(EmployeeStatus.ACTIVE);
+
+        employeeMapper.insert(newEmployee);
+        assertThat(newEmployee.getId()).isNotNull();
+        assertThat(employeeMapper.findById(newEmployee.getId()).getEmployeeCode()).isEqualTo("EMP999");
 
         List<Employee> engineeringEmployees = employeeMapper.search(
                 null,
