@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="vn.amela.employeeservice.mapper.EmployeeMapper">
+
+    <sql id="employeeColumns">
+        <trim suffixOverrides=",">
+            id,
+            employee_code,
+            email,
+            full_name,
+            phone,
+            position,
+            department_id,
+            auth_user_id,
+            salary,
+            start_date,
+            status,
+            created_at,
+            updated_at
+        </trim>
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+
+        INSERT INTO employees (
+            employee_code,
+            email,
+            full_name,
+            phone,
+            position,
+            department_id,
+            auth_user_id,
+            salary,
+            start_date,
+            status
+        )
+        VALUES (
+           #{employeeCode},
+           #{email},
+           #{fullName},
+           #{phone},
+           #{position},
+           #{departmentId},
+           #{authUserId},
+           #{salary},
+           #{startDate},
+           #{status}
+        )
+
+    </insert>
+
+    <sql id="employeeFilterWhere">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND full_name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+            <if test="departmentId != null">
+                AND department_id = #{departmentId}
+            </if>
+            <if test="position != null and position != ''">
+                AND position = #{position}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="startDateFrom != null">
+                AND start_date &gt;= #{startDateFrom}
+            </if>
+            <if test="startDateTo != null">
+                AND start_date &lt;= #{startDateTo}
+            </if>
+        </where>
+    </sql>
+
+    <update id="updateByHr">
+        UPDATE employees
+
+        SET
+            employee_code = #{employeeCode},
+            email = #{email},
+            full_name = #{fullName},
+            phone = #{phone},
+            position = #{position},
+            department_id = #{departmentId},
+            salary = #{salary},
+            start_date = #{startDate},
+            status = #{status}
+
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateContact">
+        UPDATE employees
+
+        SET
+            email = #{email},
+            phone = #{phone}
+
+        WHERE id = #{id}
+    </update>
+
+    <update id="deactivate">
+        UPDATE employees
+
+        SET status = 'INACTIVE'
+
+        WHERE id = #{id}
+    </update>
+
+    <select id="findById" resultType="vn.amela.employeeservice.entity.Employee">
+
+        SELECT <include refid="employeeColumns"/> FROM employees
+
+        WHERE id = #{id}
+
+        LIMIT 1
+
+    </select>
+
+    <select id="findByEmployeeCode" resultType="vn.amela.employeeservice.entity.Employee">
+
+        SELECT <include refid="employeeColumns"/> FROM employees
+
+        WHERE employee_code = #{employeeCode}
+
+        LIMIT 1
+
+    </select>
+
+    <select id="findByAuthUserId" resultType="vn.amela.employeeservice.entity.Employee">
+
+        SELECT <include refid="employeeColumns"/> FROM employees
+
+        WHERE auth_user_id = #{authUserId}
+
+        LIMIT 1
+
+    </select>
+
+    <select id="existsByEmployeeCodeExceptId" resultType="boolean">
+
+        SELECT COUNT(*) &gt; 0 FROM employees
+
+        WHERE employee_code = #{employeeCode}
+          AND id != #{id}
+
+    </select>
+
+    <select id="existsByEmailExceptId" resultType="boolean">
+
+        SELECT COUNT(*) &gt; 0 FROM employees
+
+        WHERE email = #{email}
+          AND id != #{id}
+
+    </select>
+
+    <select id="findByEmail" resultType="vn.amela.employeeservice.entity.Employee">
+
+        SELECT <include refid="employeeColumns"/> FROM employees
+
+        WHERE email = #{email}
+
+        LIMIT 1
+
+    </select>
+
+    <select id="search" resultType="vn.amela.employeeservice.entity.Employee">
+
+        SELECT <include refid="employeeColumns"/> FROM employees
+
+        <include refid="employeeFilterWhere"/>
+
+        ORDER BY
+        <choose>
+            <when test='sortBy == "employeeCode"'>employee_code</when>
+            <when test='sortBy == "fullName"'>full_name</when>
+            <when test='sortBy == "email"'>email</when>
+            <when test='sortBy == "position"'>position</when>
+            <when test='sortBy == "departmentId"'>department_id</when>
+            <when test='sortBy == "salary"'>salary</when>
+            <when test='sortBy == "startDate"'>start_date</when>
+            <when test='sortBy == "status"'>status</when>
+            <otherwise>created_at</otherwise>
+        </choose>
+        <choose>
+            <when test='sortDirection == "asc" or sortDirection == "ASC"'>ASC</when>
+            <otherwise>DESC</otherwise>
+        </choose>
+
+        `LIMIT` #{offset}, #{size}
+
+    </select>
+
+    <select id="countByFilter" resultType="int">
+
+        SELECT COUNT(*) FROM employees
+
+        <include refid="employeeFilterWhere"/>
+
+    </select>
+
+    <select id="countActiveByDepartmentId" resultType="int">
+
+        SELECT COUNT(*) FROM employees
+
+        WHERE department_id = #{departmentId}
+          AND status = 'ACTIVE'
+
+    </select>
+
+    <select id="existsActiveInDepartment" resultType="boolean">
+
+        SELECT COUNT(*) &gt; 0 FROM employees
+
+        WHERE id = #{employeeId}
+          AND department_id = #{departmentId}
+          AND status = 'ACTIVE'
+
+    </select>
+</mapper>
