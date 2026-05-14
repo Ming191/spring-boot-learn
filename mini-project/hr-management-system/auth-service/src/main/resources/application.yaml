@@ -1,0 +1,37 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+
+
+  datasource:
+    url: ${AUTH_DB_URL:jdbc:mysql://localhost:3306/db_auth}
+    username: ${AUTH_DB_USERNAME:root}
+    password: ${AUTH_DB_PASSWORD:root}
+
+mybatis:
+  mapper-locations: classpath:mappers/*.xml
+  type-aliases-package: vn.amela.authservice.entity
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:local-dev-secret-key-must-be-at-least-32-characters}
+    expiration-ms: ${JWT_EXPIRATION_MS:900000}
+    refresh-expiration-days: ${JWT_REFRESH_EXPIRATION_DAYS:7}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
