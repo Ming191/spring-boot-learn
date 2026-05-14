@@ -1,0 +1,21 @@
+POST http://localhost:8081/api/auth/register
+Content-Type: application/json
+
+{
+    "username": "emp_test",
+    "password": "password123",
+    "email": "emp_test@company.com",
+    "fullName": "Employee Test"
+}
+###
+POST http://localhost:8081/api/auth/login
+Content-Type: application/json
+
+{
+"usernameOrEmail": "emp_test",
+"password": "password123"
+}
+
+###
+GET http://localhost:8081/api/auth/me
+Authorization: Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiI3IiwidXNlcm5hbWUiOiJlbXBfdGVzdCIsInJvbGUiOiJFTVBMT1lFRSIsImlzcyI6ImhyLWF1dGgtc2VydmljZSIsImlhdCI6MTc3ODM1MTU1NCwiZXhwIjoxNzc4MzUyNDU0LCJqdGkiOiIxODEwZjI1NS1mOTYxLTQ3ZWUtODJjNy1jYTIzMGIwMzI5MWEifQ.7dzheo9UmF0fRFnWP-_kKJ861xMudgS2MOcdIRRPLv6iqb0EiDD3T-e0eX6UDZ9i
