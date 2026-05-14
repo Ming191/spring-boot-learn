@@ -188,7 +188,7 @@
             <otherwise>DESC</otherwise>
         </choose>
 
-        `LIMIT` #{offset}, #{size}
+        LIMIT #{offset}, #{size}
 
     </select>
 
