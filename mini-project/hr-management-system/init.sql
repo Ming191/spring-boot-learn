@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS departments (
     id          BIGINT          NOT NULL AUTO_INCREMENT,
     name        VARCHAR(100)    NOT NULL UNIQUE,
     description VARCHAR(255),
-    manager_id  BIGINT,                                -- employee_id của trưởng phòng (nullable)
+    manager_id  BIGINT,
     is_active   TINYINT(1)      NOT NULL DEFAULT 1,
     created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -69,13 +69,13 @@ CREATE TABLE IF NOT EXISTS departments (
 
 CREATE TABLE IF NOT EXISTS employees (
     id              BIGINT          NOT NULL AUTO_INCREMENT,
-    employee_code   VARCHAR(20)     NOT NULL UNIQUE,   -- VD: EMP001
+    employee_code   VARCHAR(20)     NOT NULL UNIQUE,
     full_name       VARCHAR(100)    NOT NULL,
     email           VARCHAR(100)    NOT NULL UNIQUE,
     phone           VARCHAR(20),
-    position        VARCHAR(100)    NOT NULL,           -- Chức vụ: Developer, Designer...
+    position        VARCHAR(100)    NOT NULL,
     department_id   BIGINT          NOT NULL,
-    auth_user_id    BIGINT          NOT NULL UNIQUE,   -- FK logic tới db_auth.users.id (không FK vật lý)
+    auth_user_id    BIGINT          NOT NULL UNIQUE,
     salary          DECIMAL(15, 2)  NOT NULL DEFAULT 0,
     start_date      DATE            NOT NULL,
     status          ENUM('ACTIVE', 'INACTIVE', 'ON_LEAVE') NOT NULL DEFAULT 'ACTIVE',
@@ -84,6 +84,20 @@ CREATE TABLE IF NOT EXISTS employees (
     PRIMARY KEY (id),
     CONSTRAINT fk_emp_dept FOREIGN KEY (department_id) REFERENCES departments (id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id              BIGINT          NOT NULL AUTO_INCREMENT,
+    aggregate_type  VARCHAR(50)     NOT NULL,
+    aggregate_id    BIGINT          NOT NULL,
+    event_type      VARCHAR(100)    NOT NULL,
+    payload         JSON            NOT NULL,
+    status          ENUM('PENDING', 'PUBLISHED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+    created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at    DATETIME        NULL,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_outbox_emp_status ON outbox_events (status);
 
 CREATE INDEX idx_emp_status        ON employees (status);
 CREATE INDEX idx_emp_department    ON employees (department_id);
@@ -102,8 +116,8 @@ INSERT INTO employees (employee_code, full_name, email, phone, position, departm
                                                                                                                                       ('EMP003', 'Lê Minh Cường', 'le@company.com',     '0903456789', 'Marketing Specialist',3, 5, 12000000, '2024-03-10', 'ACTIVE'),
                                                                                                                                       ('EMP004', 'Phạm Thị Dung', 'pham@company.com',   '0904567890', 'Accountant',          4, 6, 13000000, '2024-01-20', 'ACTIVE');
 
-UPDATE departments SET manager_id = 1 WHERE id = 1;  -- Nguyễn Văn An làm trưởng Engineering
-UPDATE departments SET manager_id = 3 WHERE id = 3;  -- Lê Minh Cường làm trưởng Marketing
+UPDATE departments SET manager_id = 1 WHERE id = 1;
+UPDATE departments SET manager_id = 3 WHERE id = 3;
 
 
 -- ============================================================
@@ -113,24 +127,38 @@ USE db_leave;
 
 CREATE TABLE IF NOT EXISTS leave_requests (
     id              BIGINT          NOT NULL AUTO_INCREMENT,
-    employee_id     BIGINT          NOT NULL,           -- FK logic tới db_emp.employees.id
-    employee_code   VARCHAR(20)     NOT NULL,           -- Denormalize để tránh Feign call khi query
-    employee_name   VARCHAR(100)    NOT NULL,           -- Denormalize
-    department_name VARCHAR(100)    NOT NULL,           -- Denormalize
+    employee_id     BIGINT          NOT NULL,
+    employee_code   VARCHAR(20)     NOT NULL,
+    employee_name   VARCHAR(100)    NOT NULL,
+    department_name VARCHAR(100)    NOT NULL,
     leave_type      ENUM('ANNUAL', 'SICK', 'PERSONAL', 'UNPAID') NOT NULL,
     from_date       DATE            NOT NULL,
     to_date         DATE            NOT NULL,
     CHECK (to_date >= from_date),
-    total_days      INT             NOT NULL,           -- Tính sẵn khi tạo đơn
+    total_days      INT             NOT NULL,
     reason          TEXT            NOT NULL,
     status          ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
-    reviewed_by     BIGINT,                             -- auth_user_id của HR duyệt (nullable)
-    reviewer_note   VARCHAR(500),                       -- Ghi chú khi duyệt/từ chối
+    reviewed_by     BIGINT,
+    reviewer_note   VARCHAR(500),
     reviewed_at     DATETIME,
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS outbox_events (
+     id              BIGINT          NOT NULL AUTO_INCREMENT,
+     aggregate_type  VARCHAR(50)     NOT NULL,
+     aggregate_id    BIGINT          NOT NULL,
+     event_type      VARCHAR(100)    NOT NULL,
+     payload         JSON            NOT NULL,
+     status          ENUM('PENDING', 'PUBLISHED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     published_at    DATETIME        NULL,
+     PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_outbox_leave_status ON outbox_events (status);
 
 CREATE INDEX idx_leave_employee_id  ON leave_requests (employee_id);
 CREATE INDEX idx_leave_status       ON leave_requests (status);
