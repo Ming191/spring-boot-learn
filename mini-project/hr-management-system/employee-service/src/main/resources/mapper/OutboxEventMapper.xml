@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="vn.amela.employeeservice.mapper.OutboxEventMapper">
+
+    <sql id="outboxEventColumns">
+        id,
+        aggregate_type,
+        aggregate_id,
+        event_type,
+        payload,
+        status,
+        created_at,
+        published_at
+    </sql>
+
+    <insert id="insert"
+            keyProperty="id"
+            useGeneratedKeys="true"
+    >
+
+    INSERT INTO outbox_events (
+        aggregate_type,
+        aggregate_id,
+        event_type,
+        payload,
+        status
+    )
+    VALUES (
+        #{aggregateType},
+        #{aggregateId},
+        #{eventType},
+        #{payload},
+        'PENDING'
+   )
+
+    </insert>
+
+    <update id="markPublished">
+
+        UPDATE outbox_events
+        SET status = 'PUBLISHED', published_at = NOW()
+        WHERE id = #{id}
+
+    </update>
+    <update id="markFailed">
+
+        UPDATE outbox_events
+        SET status = 'FAILED'
+        WHERE id = #{id}
+
+    </update>
+
+    <select id="findPending" resultType="vn.amela.employeeservice.entity.OutboxEvent">
+
+        SELECT <include refid="outboxEventColumns"/> FROM outbox_events
+        WHERE status = 'PENDING'
+        ORDER BY created_at
+        LIMIT #{limit}
+
+    </select>
+
+</mapper>
