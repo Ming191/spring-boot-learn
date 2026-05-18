@@ -28,4 +28,5 @@ public interface DepartmentMapper {
 
     int deactivate(@Param("id") Long id);
 
+    boolean existsActiveById(Long id);
 }
