@@ -111,10 +111,10 @@ INSERT INTO departments (id, name, description) VALUES
 (4, 'Finance',      'Phòng tài chính kế toán');
 
 INSERT INTO employees (employee_code, full_name, email, phone, position, department_id, auth_user_id, salary, start_date, status) VALUES
-                                                                                                                                      ('EMP001', 'Nguyễn Văn An', 'nguyen@company.com', '0901234567', 'Backend Developer',  1, 3, 15000000, '2024-01-15', 'ACTIVE'),
-                                                                                                                                      ('EMP002', 'Trần Thị Bình', 'tran@company.com',   '0902345678', 'Frontend Developer', 1, 4, 14000000, '2024-02-01', 'ACTIVE'),
-                                                                                                                                      ('EMP003', 'Lê Minh Cường', 'le@company.com',     '0903456789', 'Marketing Specialist',3, 5, 12000000, '2024-03-10', 'ACTIVE'),
-                                                                                                                                      ('EMP004', 'Phạm Thị Dung', 'pham@company.com',   '0904567890', 'Accountant',          4, 6, 13000000, '2024-01-20', 'ACTIVE');
+('EMP001', 'Nguyễn Văn An', 'nguyen@company.com', '0901234567', 'Backend Developer',  1, 3, 15000000, '2024-01-15', 'ACTIVE'),
+('EMP002', 'Trần Thị Bình', 'tran@company.com',   '0902345678', 'Frontend Developer', 1, 4, 14000000, '2024-02-01', 'ACTIVE'),
+('EMP003', 'Lê Minh Cường', 'le@company.com',     '0903456789', 'Marketing Specialist',3, 5, 12000000, '2024-03-10', 'ACTIVE'),
+('EMP004', 'Phạm Thị Dung', 'pham@company.com',   '0904567890', 'Accountant',          4, 6, 13000000, '2024-01-20', 'ACTIVE');
 
 UPDATE departments SET manager_id = 1 WHERE id = 1;
 UPDATE departments SET manager_id = 3 WHERE id = 3;
