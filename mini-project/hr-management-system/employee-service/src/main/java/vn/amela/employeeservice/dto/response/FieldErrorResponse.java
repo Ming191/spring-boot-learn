@@ -1,11 +1,6 @@
 package vn.amela.employeeservice.dto.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-@Data
-@AllArgsConstructor
-public class FieldErrorResponse {
-    private String field;
-    private String message;
-}
+public record FieldErrorResponse(
+        String field,
+        String message
+) {}

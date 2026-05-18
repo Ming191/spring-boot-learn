@@ -1,25 +1,27 @@
 package vn.amela.employeeservice.dto.response;
 
-import lombok.Data;
+import lombok.Builder;
 import vn.amela.employeeservice.entity.enums.EmployeeStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Data
-public class EmployeeResponse {
-    private Long id;
-    private String employeeCode;
-    private String fullName;
-    private String email;
-    private String phone;
-    private String position;
-    private EmployeeStatus status;
-    private BigDecimal salary;
-    private Long authUserId;
-    private Long departmentId;
-    private LocalDate startDate;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+@Builder
+public record EmployeeResponse(
+        Long id,
+        String employeeCode,
+        String fullName,
+        String email,
+        String phone,
+        String position,
+        EmployeeStatus status,
+        BigDecimal salary,
+        Long authUserId,
+        Long departmentId,
+        String departmentName,
+        LocalDate startDate,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+) {
 }

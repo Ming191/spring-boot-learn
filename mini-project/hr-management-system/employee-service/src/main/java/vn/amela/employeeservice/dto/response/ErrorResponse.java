@@ -1,18 +1,16 @@
 package vn.amela.employeeservice.dto.response;
 
 import lombok.Builder;
-import lombok.Data;
 
 import java.time.Instant;
 import java.util.List;
 
-@Data
 @Builder
-public class ErrorResponse {
-    private Instant timestamp;
-    private int status;
-    private String code;
-    private String message;
-    private String path;
-    private List<FieldErrorResponse> errors;
-}
+public record ErrorResponse(
+        Instant timestamp,
+        int status,
+        String code,
+        String message,
+        String path,
+        List<FieldErrorResponse> errors
+) {}
