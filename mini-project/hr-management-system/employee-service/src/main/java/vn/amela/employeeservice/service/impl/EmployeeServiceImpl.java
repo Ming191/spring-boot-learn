@@ -2,6 +2,7 @@ package vn.amela.employeeservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
 import vn.amela.employeeservice.dto.request.EmployeeFilterRequest;
 import vn.amela.employeeservice.dto.request.UpdateContactRequest;
@@ -10,12 +11,18 @@ import vn.amela.employeeservice.dto.response.EmployeeResponse;
 import vn.amela.employeeservice.dto.response.PageResponse;
 import vn.amela.employeeservice.entity.Department;
 import vn.amela.employeeservice.entity.Employee;
+import vn.amela.employeeservice.entity.OutboxEvent;
+import vn.amela.employeeservice.entity.enums.OutboxEventStatus;
 import vn.amela.employeeservice.exception.BusinessException;
+import vn.amela.employeeservice.exception.DuplicateResourceException;
 import vn.amela.employeeservice.exception.ResourceNotFoundException;
 import vn.amela.employeeservice.mapper.DepartmentMapper;
 import vn.amela.employeeservice.mapper.EmployeeMapper;
+import vn.amela.employeeservice.mapper.OutboxEventMapper;
 import vn.amela.employeeservice.service.EmployeeService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.time.LocalDateTime;
 import java.util.Locale;
 
 @Service
@@ -24,6 +31,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     protected final EmployeeMapper employeeMapper;
     protected final DepartmentMapper departmentMapper;
+    protected final OutboxEventMapper outboxEventMapper;
+    protected final ObjectMapper objectMapper;
 
     @Override
     public EmployeeResponse create(CreateEmployeeRequest request) {
@@ -41,13 +50,85 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @Transactional
     public EmployeeResponse updateByHr(Long id, UpdateEmployeeRequest request) {
-        return null;
+        Employee currentEmployee = employeeMapper.findById(id);
+        if (currentEmployee == null) {
+            throw new ResourceNotFoundException("Employee not found");
+        }
+
+        String email = request.email() != null ? normalizeEmail(request.email()) : null;
+        if (email != null) {
+            Employee existing = employeeMapper.findByEmail(email);
+            if (existing != null && !existing.getId().equals(id)) {
+                throw new DuplicateResourceException("Email is already in use");
+            }
+        }
+        Department department = requireActiveDepartment(request.departmentId());
+
+        boolean isDepartmentChanged = currentEmployee.getDepartmentId() == null ||
+                !currentEmployee.getDepartmentId().equals(request.departmentId());
+        boolean isSalaryChanged = currentEmployee.getSalary() == null ||
+                currentEmployee.getSalary().compareTo(request.salary()) != 0;
+
+        currentEmployee.setFullName(request.fullName());
+        currentEmployee.setEmail(email);
+        currentEmployee.setPhone(request.phone());
+        currentEmployee.setPosition(request.position());
+        currentEmployee.setDepartmentId(request.departmentId());
+        currentEmployee.setSalary(request.salary());
+        currentEmployee.setStartDate(request.startDate());
+
+        employeeMapper.updateByHr(currentEmployee);
+
+        if (isDepartmentChanged || isSalaryChanged) {
+            try {
+                OutboxEvent event = OutboxEvent.builder()
+                        .aggregateType("EMPLOYEE")
+                        .aggregateId(currentEmployee.getId())
+                        .eventType("employee.status.changed")
+                        .payload(objectMapper.writeValueAsString(currentEmployee))
+                        .status(OutboxEventStatus.PENDING)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                outboxEventMapper.insert(event);
+            } catch (Exception e) {
+                throw new BusinessException("Failed to serialize outbox event payload");
+            }
+        }
+
+        return toResponse(currentEmployee, department.getName());
     }
 
     @Override
+    @Transactional
     public EmployeeResponse updateContact(Long id, UpdateContactRequest request, Long requesterId) {
-        return null;
+        Employee currentEmployee = employeeMapper.findById(id);
+        if (currentEmployee == null) {
+            throw new ResourceNotFoundException("Employee not found");
+        }
+
+        if (!requesterId.equals(currentEmployee.getAuthUserId())) {
+            throw new BusinessException("You are not authorized to update this employee's contact");
+        }
+
+        String email = normalizeEmail(request.email());
+        Employee existing = employeeMapper.findByEmail(email);
+        if (existing != null && !existing.getId().equals(id)) {
+            throw new DuplicateResourceException("Email is already in use");
+        }
+
+        employeeMapper.updateContact(id, email, request.phone());
+
+        currentEmployee.setEmail(email);
+        currentEmployee.setPhone(request.phone());
+
+        Department department = currentEmployee.getDepartmentId() != null 
+                ? departmentMapper.findById(currentEmployee.getDepartmentId()) 
+                : null;
+        String departmentName = department != null ? department.getName() : null;
+
+        return toResponse(currentEmployee, departmentName);
     }
 
     @Override
