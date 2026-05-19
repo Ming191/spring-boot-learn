@@ -56,6 +56,13 @@ public class PreAuthenticationRateLimiterFilter implements GlobalFilter, Ordered
             return chain.filter(exchange);
         }
 
+        String path = exchange.getRequest().getPath().value();
+        if (path.startsWith("/actuator/health/") ||
+            path.startsWith("/actuator/info/")) {
+
+            return chain.filter(exchange);
+        }
+
         return keyResolver.resolve(exchange)
             .filter(key -> !key.isBlank())
             .defaultIfEmpty("ip:unknown")
