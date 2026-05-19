@@ -36,17 +36,18 @@ class EmployeeServiceImplTest {
 
     @Test
     void search_delegatesToMapperAndBuildsPageResponse() {
-        EmployeeFilterRequest filter = new EmployeeFilterRequest();
-        filter.setLikeName("  An  ");
-        filter.setDepartmentId(1L);
-        filter.setPosition(" Backend Developer ");
-        filter.setStatus(EmployeeStatus.ACTIVE);
-        filter.setStartDateFrom(LocalDate.of(2024, 1, 1));
-        filter.setStartDateTo(LocalDate.of(2024, 12, 31));
-        filter.setPage(1);
-        filter.setSize(2);
-        filter.setSortBy("employeeCode");
-        filter.setSortDirection("ASC");
+        EmployeeFilterRequest filter = EmployeeFilterRequest.builder()
+                .likeName("  An  ")
+                .departmentId(1L)
+                .position(" Backend Developer ")
+                .status(EmployeeStatus.ACTIVE)
+                .startDateFrom(LocalDate.of(2024, 1, 1))
+                .startDateTo(LocalDate.of(2024, 12, 31))
+                .page(1)
+                .size(2)
+                .sortBy("employeeCode")
+                .sortDirection("ASC")
+                .build();
 
         Employee employee = Employee.builder()
                 .id(10L)
@@ -114,19 +115,27 @@ class EmployeeServiceImplTest {
     }
 
     @Test
-    void search_negativePageThrows() {
-        EmployeeFilterRequest filter = new EmployeeFilterRequest();
-        filter.setPage(-1);
+    void search_negativePageUsesRecordDefault() {
+        EmployeeFilterRequest filter = EmployeeFilterRequest.builder()
+                .page(-1)
+                .size(0)
+                .build();
+        when(employeeMapper.search(null, null, null, null, null, null, "createdAt", "desc", 0, 10))
+                .thenReturn(List.of());
+        when(employeeMapper.countByFilter(null, null, null, null, null, null)).thenReturn(0);
 
-        assertThrows(BusinessException.class, () -> employeeService.search(filter));
-        verifyNoInteractions(employeeMapper);
+        PageResponse<EmployeeResponse> response = employeeService.search(filter);
+
+        assertThat(response.page()).isZero();
+        assertThat(response.size()).isEqualTo(10);
     }
 
     @Test
     void search_invalidDateRangeThrows() {
-        EmployeeFilterRequest filter = new EmployeeFilterRequest();
-        filter.setStartDateFrom(LocalDate.of(2024, 12, 31));
-        filter.setStartDateTo(LocalDate.of(2024, 1, 1));
+        EmployeeFilterRequest filter = EmployeeFilterRequest.builder()
+                .startDateFrom(LocalDate.of(2024, 12, 31))
+                .startDateTo(LocalDate.of(2024, 1, 1))
+                .build();
 
         assertThrows(BusinessException.class, () -> employeeService.search(filter));
         verifyNoInteractions(employeeMapper);

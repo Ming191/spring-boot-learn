@@ -41,9 +41,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public PageResponse<EmployeeResponse> search(EmployeeFilterRequest filter) {
-        EmployeeFilterRequest normalizedFilter = filter == null ? new EmployeeFilterRequest() : filter;
-        int page = normalizedFilter.getPage();
-        int size = normalizedFilter.getSize();
+        EmployeeFilterRequest normalizedFilter = filter == null ? defaultFilter() : filter;
+        int page = normalizedFilter.page();
+        int size = normalizedFilter.size();
         if (page < 0) {
             throw new BusinessException("Page index cannot be negative");
         }
@@ -51,23 +51,23 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new BusinessException("Page size must be greater than zero");
         }
 
-        LocalDate startDateFrom = normalizedFilter.getStartDateFrom();
-        LocalDate startDateTo = normalizedFilter.getStartDateTo();
+        LocalDate startDateFrom = normalizedFilter.startDateFrom();
+        LocalDate startDateTo = normalizedFilter.startDateTo();
         if (startDateFrom != null && startDateTo != null && startDateFrom.isAfter(startDateTo)) {
             throw new BusinessException("Start date from cannot be after start date to");
         }
 
-        String keyword = normalizeOptionalText(normalizedFilter.getLikeName());
-        String position = normalizeOptionalText(normalizedFilter.getPosition());
-        String sortBy = normalizeSortBy(normalizedFilter.getSortBy());
-        String sortDirection = normalizeSortDirection(normalizedFilter.getSortDirection());
+        String keyword = normalizeOptionalText(normalizedFilter.likeName());
+        String position = normalizeOptionalText(normalizedFilter.position());
+        String sortBy = normalizeSortBy(normalizedFilter.sortBy());
+        String sortDirection = normalizeSortDirection(normalizedFilter.sortDirection());
         int offset = page * size;
 
         List<Employee> employees = employeeMapper.search(
                 keyword,
-                normalizedFilter.getDepartmentId(),
+                normalizedFilter.departmentId(),
                 position,
-                normalizedFilter.getStatus(),
+                normalizedFilter.status(),
                 startDateFrom,
                 startDateTo,
                 sortBy,
@@ -77,9 +77,9 @@ public class EmployeeServiceImpl implements EmployeeService {
         );
         int totalElements = employeeMapper.countByFilter(
                 keyword,
-                normalizedFilter.getDepartmentId(),
+                normalizedFilter.departmentId(),
                 position,
-                normalizedFilter.getStatus(),
+                normalizedFilter.status(),
                 startDateFrom,
                 startDateTo
         );
@@ -100,6 +100,10 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .totalElements(totalElements)
                 .totalPages(totalPages)
                 .build();
+    }
+
+    private EmployeeFilterRequest defaultFilter() {
+        return new EmployeeFilterRequest(null, null, null, null, null, null, 0, 10, null, null);
     }
 
     @Override
