@@ -57,13 +57,16 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new ResourceNotFoundException("Employee not found");
         }
 
-        String email = request.email() != null ? normalizeEmail(request.email()) : null;
-        if (email != null) {
-            Employee existing = employeeMapper.findByEmail(email);
-            if (existing != null && !existing.getId().equals(id)) {
-                throw new DuplicateResourceException("Email is already in use");
-            }
+        if (request.email() == null || request.email().isBlank()) {
+            throw new BusinessException("Email must not be blank");
         }
+
+        String email = normalizeEmail(request.email());
+        Employee existing = employeeMapper.findByEmail(email);
+        if (existing != null && !existing.getId().equals(id)) {
+            throw new DuplicateResourceException("Email is already in use");
+        }
+
         Department department = requireActiveDepartment(request.departmentId());
 
         boolean isDepartmentChanged = currentEmployee.getDepartmentId() == null ||
