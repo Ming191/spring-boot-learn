@@ -1,26 +1,133 @@
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
 spring:
   application:
     name: gateway
+  data:
+    redis:
+      host: localhost
+      port: 6379
   cloud:
     gateway:
       server:
         webflux:
+          httpclient:
+            response-timeout: 5s
+            connect-timeout: 2000
           routes:
+            - id: auth-public
+              order: 0
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/auth/login,/api/auth/register,/api/auth/refresh
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@ipKeyResolver}"
+                    redis-rate-limiter.replenishRate: 2
+                    redis-rate-limiter.burstCapacity: 5
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: auth-service-circuit-breaker
+                    fallbackUri: forward:/fallback/auth-service
+                    statusCodes:
+                      - 500
+                      - 502
+                      - 503
+                      - 504
             - id: auth-service
+              order: 10
               uri: lb://AUTH-SERVICE
               predicates:
                 - Path=/api/auth/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userKeyResolver}"
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: auth-service-circuit-breaker
+                    fallbackUri: forward:/fallback/auth-service
+                    statusCodes:
+                      - 500
+                      - 502
+                      - 503
+                      - 504
             - id: employee-service
               uri: lb://EMPLOYEE-SERVICE
               predicates:
                 - Path=/api/employees/**,/api/departments/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userKeyResolver}"
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: employee-service-circuit-breaker
+                    fallbackUri: forward:/fallback/employee-service
+                    statusCodes:
+                      - 500
+                      - 502
+                      - 503
+                      - 504
+                - name: Retry
+                  args:
+                    retries: 1
+                    methods: GET
+                    series: SERVER_ERROR
+                    backoff:
+                      firstBackoff: 500ms
+                      maxBackoff: 2s
+                      factor: 2
+                      basedOnPreviousValue: false
             - id: leave-service
               uri: lb://LEAVE-SERVICE
               predicates:
                 - Path=/api/leaves/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userKeyResolver}"
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: leave-service-circuit-breaker
+                    fallbackUri: forward:/fallback/leave-service
+                    statusCodes:
+                      - 500
+                      - 502
+                      - 503
+                      - 504
+                - name: Retry
+                  args:
+                    retries: 1
+                    methods: GET
+                    series: SERVER_ERROR
+                    backoff:
+                      firstBackoff: 500ms
+                      maxBackoff: 2s
+                      factor: 2
+                      basedOnPreviousValue: false
           globalcors:
             corsConfigurations:
               '[/**]':
@@ -34,11 +141,10 @@ spring:
                   - OPTIONS
                 allowedHeaders: "*"
                 allowCredentials: true
-
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://localhost:8761/eureka/
 
 app:
   jwt:
@@ -47,6 +153,11 @@ app:
     audience: ${JWT_AUDIENCE:hr-management-system}
 
 gateway:
+  pre-auth-rate-limit:
+    enabled: true
+    replenish-rate: 30
+    burst-capacity: 60
+    requested-tokens: 1
   public-paths:
     - /api/auth/login
     - /api/auth/register
@@ -62,3 +173,45 @@ gateway:
     - path: /api/departments/**
       methods: [POST, PUT, DELETE]
       roles: [HR]
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      auth-service-circuit-breaker:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        slidingWindowType: COUNT_BASED
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        registerHealthIndicator: true
+      employee-service-circuit-breaker:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        slidingWindowType: COUNT_BASED
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        registerHealthIndicator: true
+      leave-service-circuit-breaker:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        slidingWindowType: COUNT_BASED
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        registerHealthIndicator: true
+  timelimiter:
+    instances:
+      auth-service-circuit-breaker:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+      employee-service-circuit-breaker:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+      leave-service-circuit-breaker:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
