@@ -116,6 +116,7 @@ class DepartmentServiceImplTest {
                 .isActive(true)
                 .build();
         UpdateDepartmentRequest request = UpdateDepartmentRequest.builder()
+                .name("Engineering")
                 .managerId(10L)
                 .build();
 
