@@ -44,12 +44,6 @@ public class EmployeeServiceImpl implements EmployeeService {
         EmployeeFilterRequest normalizedFilter = filter == null ? defaultFilter() : filter;
         int page = normalizedFilter.page();
         int size = normalizedFilter.size();
-        if (page < 0) {
-            throw new BusinessException("Page index cannot be negative");
-        }
-        if (size <= 0) {
-            throw new BusinessException("Page size must be greater than zero");
-        }
 
         LocalDate startDateFrom = normalizedFilter.startDateFrom();
         LocalDate startDateTo = normalizedFilter.startDateTo();
