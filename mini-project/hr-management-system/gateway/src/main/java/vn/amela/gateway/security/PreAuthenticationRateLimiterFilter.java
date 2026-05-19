@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -24,10 +24,12 @@ import java.util.Collections;
 
 @Component
 @RequiredArgsConstructor
+@NullMarked
 public class PreAuthenticationRateLimiterFilter implements GlobalFilter, Ordered {
 
     private static final String PRE_AUTH_ROUTE_ID = "pre-auth";
     private static final String TOO_MANY_REQUESTS = "Too many requests";
+    private static final String TOO_MANY_REQUESTS_CODE = "TOO_MANY_REQUESTS";
 
     private final RedisRateLimiter redisRateLimiter;
     @Qualifier("ipKeyResolver")
@@ -47,8 +49,8 @@ public class PreAuthenticationRateLimiterFilter implements GlobalFilter, Ordered
 
     @Override
     public Mono<Void> filter(
-        @NonNull ServerWebExchange exchange,
-        @NonNull GatewayFilterChain chain
+        ServerWebExchange exchange,
+        GatewayFilterChain chain
     ) {
         if (!properties.isEnabled()) {
             return chain.filter(exchange);
@@ -81,7 +83,7 @@ public class PreAuthenticationRateLimiterFilter implements GlobalFilter, Ordered
         GatewayErrorResponse errorResponse = new GatewayErrorResponse(
             Instant.now().toString(),
             HttpStatus.TOO_MANY_REQUESTS.value(),
-            "TOO_MANY_REQUESTS",
+            TOO_MANY_REQUESTS_CODE,
             TOO_MANY_REQUESTS,
             exchange.getRequest().getURI().getPath(),
             Collections.emptyList()
