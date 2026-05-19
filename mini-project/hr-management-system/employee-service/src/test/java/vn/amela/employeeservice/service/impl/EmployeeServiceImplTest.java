@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import vn.amela.employeeservice.client.LeaveServiceClient;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
 import vn.amela.employeeservice.dto.request.UpdateContactRequest;
 import vn.amela.employeeservice.dto.request.UpdateEmployeeRequest;
@@ -47,6 +48,9 @@ class EmployeeServiceImplTest {
     @Mock
     private OutboxEventMapper outboxEventMapper;
 
+    @Mock
+    private LeaveServiceClient leaveServiceClient;
+
     private EmployeeServiceImpl employeeService;
     private JsonMapper objectMapper;
 
@@ -57,7 +61,8 @@ class EmployeeServiceImplTest {
                 employeeMapper,
                 departmentMapper,
                 outboxEventMapper,
-                objectMapper
+                objectMapper,
+                leaveServiceClient
         );
     }
 
@@ -239,6 +244,45 @@ class EmployeeServiceImplTest {
                 .isInstanceOf(DuplicateResourceException.class);
     }
 
+    @Test
+    void deactivateActiveEmployeeWithoutPendingLeavesStoresOutboxEvent() {
+        Employee currentEmployee = employeeForDeactivate(EmployeeStatus.ACTIVE);
+        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
+        when(leaveServiceClient.hasPendingLeavesByEmployeeId(1L)).thenReturn(false);
+
+        employeeService.deactivate(1L);
+
+        verify(employeeMapper).deactivate(1L);
+
+        ArgumentCaptor<OutboxEvent> eventCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventMapper).insert(eventCaptor.capture());
+        OutboxEvent event = eventCaptor.getValue();
+        assertThat(event.getAggregateType()).isEqualTo("EMPLOYEE");
+        assertThat(event.getEventType()).isEqualTo("employee.deactivated");
+        assertThat(event.getAggregateId()).isEqualTo(1L);
+    }
+
+    @Test
+    void deactivateRejectsInactiveEmployee() {
+        Employee currentEmployee = employeeForDeactivate(EmployeeStatus.INACTIVE);
+        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
+
+        assertThatThrownBy(() -> employeeService.deactivate(1L))
+                .isInstanceOf(BusinessException.class);
+        verify(employeeMapper, never()).deactivate(1L);
+    }
+
+    @Test
+    void deactivateRejectsEmployeeWithPendingLeaves() {
+        Employee currentEmployee = employeeForDeactivate(EmployeeStatus.ACTIVE);
+        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
+        when(leaveServiceClient.hasPendingLeavesByEmployeeId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> employeeService.deactivate(1L))
+                .isInstanceOf(BusinessException.class);
+        verify(employeeMapper, never()).deactivate(1L);
+    }
+
     private CreateEmployeeRequest validRequest() {
         return new CreateEmployeeRequest(
                 " emp010 ",
@@ -301,6 +345,13 @@ class EmployeeServiceImplTest {
         employee.setDepartmentId(2L);
         employee.setSalary(BigDecimal.valueOf(1000));
         employee.setAuthUserId(99L);
+        return employee;
+    }
+
+    private Employee employeeForDeactivate(EmployeeStatus status) {
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setStatus(status);
         return employee;
     }
 }

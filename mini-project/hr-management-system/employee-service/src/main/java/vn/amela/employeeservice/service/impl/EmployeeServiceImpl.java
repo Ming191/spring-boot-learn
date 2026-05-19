@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
+import vn.amela.employeeservice.client.LeaveServiceClient;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
 import vn.amela.employeeservice.dto.request.EmployeeFilterRequest;
 import vn.amela.employeeservice.dto.request.UpdateContactRequest;
@@ -34,6 +35,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private static final String EMPLOYEE_CREATED_EVENT = "employee.created";
     private static final String EMPLOYEE_STATUS_CHANGED_EVENT = "employee.status.changed";
+    private static final String EMPLOYEE_DEACTIVATED_EVENT = "employee.deactivated";
     private static final String EMPLOYEE_AGGREGATE_TYPE = "Employee";
     private static final String LEGACY_EMPLOYEE_AGGREGATE_TYPE = "EMPLOYEE";
 
@@ -41,6 +43,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     protected final DepartmentMapper departmentMapper;
     protected final OutboxEventMapper outboxEventMapper;
     protected final JsonMapper objectMapper;
+    protected final LeaveServiceClient leaveServiceClient;
 
     @Override
     @Transactional
@@ -106,7 +109,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         employeeMapper.updateByHr(currentEmployee);
 
         if (isDepartmentChanged || isSalaryChanged) {
-            saveEmployeeStatusChangedEvent(currentEmployee);
+            saveLegacyEmployeeEvent(EMPLOYEE_STATUS_CHANGED_EVENT, currentEmployee);
         }
 
         return toResponse(currentEmployee, department.getName());
@@ -144,7 +147,23 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @Transactional
     public void deactivate(Long id) {
+        Employee currentEmployee = employeeMapper.findById(id);
+        if (currentEmployee == null) {
+            throw new ResourceNotFoundException("Employee not found");
+        }
+
+        if (!EmployeeStatus.ACTIVE.equals(currentEmployee.getStatus())) {
+            throw new BusinessException("Employee is not active");
+        }
+
+        if (leaveServiceClient.hasPendingLeavesByEmployeeId(id)) {
+            throw new BusinessException("Cannot deactivate employee with pending leaves");
+        }
+
+        employeeMapper.deactivate(id);
+        saveLegacyEmployeeEvent(EMPLOYEE_DEACTIVATED_EVENT, currentEmployee);
     }
 
     private String normalizeEmployeeCode(String employeeCode) {
@@ -203,11 +222,11 @@ public class EmployeeServiceImpl implements EmployeeService {
         outboxEventMapper.insert(event);
     }
 
-    private void saveEmployeeStatusChangedEvent(Employee employee) {
+    private void saveLegacyEmployeeEvent(String eventType, Employee employee) {
         OutboxEvent event = OutboxEvent.builder()
                 .aggregateType(LEGACY_EMPLOYEE_AGGREGATE_TYPE)
                 .aggregateId(employee.getId())
-                .eventType(EMPLOYEE_STATUS_CHANGED_EVENT)
+                .eventType(eventType)
                 .payload(objectMapper.writeValueAsString(employee))
                 .status(OutboxEventStatus.PENDING)
                 .createdAt(LocalDateTime.now())
