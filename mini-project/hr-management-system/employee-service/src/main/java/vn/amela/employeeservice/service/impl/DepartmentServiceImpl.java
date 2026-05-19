@@ -45,7 +45,6 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .description(normalizedDescription)
                 .managerId(null)
                 .isActive(true)
-                .createdAt(LocalDateTime.now())
                 .build();
 
         departmentMapper.insert(department);
@@ -104,8 +103,6 @@ public class DepartmentServiceImpl implements DepartmentService {
             }
             department.setIsActive(request.isActive());
         }
-
-        department.setUpdatedAt(LocalDateTime.now());
 
         departmentMapper.update(department);
 
