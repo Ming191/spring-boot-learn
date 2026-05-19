@@ -23,5 +23,4 @@ public record EmployeeResponse(
         LocalDate startDate,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
-) {
-}
+) {}
