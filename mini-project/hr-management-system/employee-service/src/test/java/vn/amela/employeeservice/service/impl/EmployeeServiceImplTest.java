@@ -9,11 +9,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
+import vn.amela.employeeservice.dto.request.UpdateContactRequest;
+import vn.amela.employeeservice.dto.request.UpdateEmployeeRequest;
 import vn.amela.employeeservice.dto.response.EmployeeResponse;
 import vn.amela.employeeservice.entity.Department;
 import vn.amela.employeeservice.entity.Employee;
 import vn.amela.employeeservice.entity.OutboxEvent;
 import vn.amela.employeeservice.entity.enums.EmployeeStatus;
+import vn.amela.employeeservice.exception.BusinessException;
 import vn.amela.employeeservice.exception.DuplicateResourceException;
 import vn.amela.employeeservice.exception.ResourceNotFoundException;
 import vn.amela.employeeservice.mapper.DepartmentMapper;
@@ -127,6 +130,115 @@ class EmployeeServiceImplTest {
         verify(outboxEventMapper, never()).insert(any(OutboxEvent.class));
     }
 
+    @Test
+    void updateByHrWithoutDepartmentOrSalaryChangeDoesNotStoreOutboxEvent() {
+        Employee existingEmployee = employeeForUpdate();
+        when(employeeMapper.findById(1L)).thenReturn(existingEmployee);
+
+        Department department = department(2L, "IT", true);
+        when(departmentMapper.findById(2L)).thenReturn(department);
+
+        UpdateEmployeeRequest request = updateRequest(2L, BigDecimal.valueOf(1000));
+
+        EmployeeResponse response = employeeService.updateByHr(1L, request);
+
+        verify(employeeMapper).updateByHr(any(Employee.class));
+        verify(outboxEventMapper, never()).insert(any(OutboxEvent.class));
+        assertThat(existingEmployee.getAuthUserId()).isEqualTo(99L);
+        assertThat(response).isNotNull();
+    }
+
+    @Test
+    void updateByHrWithDepartmentOrSalaryChangeStoresOutboxEvent() {
+        Employee existingEmployee = employeeForUpdate();
+        when(employeeMapper.findById(1L)).thenReturn(existingEmployee);
+
+        Department department = department(3L, "HR", true);
+        when(departmentMapper.findById(3L)).thenReturn(department);
+
+        employeeService.updateByHr(1L, updateRequest(3L, BigDecimal.valueOf(1500)));
+
+        verify(employeeMapper).updateByHr(any(Employee.class));
+        ArgumentCaptor<OutboxEvent> eventCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventMapper).insert(eventCaptor.capture());
+
+        OutboxEvent event = eventCaptor.getValue();
+        assertThat(event.getAggregateType()).isEqualTo("EMPLOYEE");
+        assertThat(event.getEventType()).isEqualTo("employee.status.changed");
+        assertThat(event.getAggregateId()).isEqualTo(1L);
+        assertThat(existingEmployee.getAuthUserId()).isEqualTo(99L);
+        assertThat(existingEmployee.getDepartmentId()).isEqualTo(3L);
+        assertThat(existingEmployee.getSalary()).isEqualByComparingTo("1500");
+    }
+
+    @Test
+    void updateByHrRejectsEmailAlreadyInUse() {
+        Employee currentEmployee = employeeForUpdate();
+        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
+
+        Employee otherEmployee = new Employee();
+        otherEmployee.setId(2L);
+        when(employeeMapper.findByEmail("john@example.com")).thenReturn(otherEmployee);
+
+        assertThatThrownBy(() -> employeeService.updateByHr(1L, updateRequest(2L, BigDecimal.valueOf(1000))))
+                .isInstanceOf(DuplicateResourceException.class);
+    }
+
+    @Test
+    void updateByHrRejectsInactiveDepartment() {
+        Employee currentEmployee = employeeForUpdate();
+        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
+
+        when(departmentMapper.findById(2L)).thenReturn(department(2L, "IT", false));
+
+        assertThatThrownBy(() -> employeeService.updateByHr(1L, updateRequest(2L, BigDecimal.valueOf(1000))))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void updateContactUpdatesOnlyRequesterContactFields() {
+        Employee currentEmployee = employeeForUpdate();
+        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
+
+        Department department = department(2L, "IT", true);
+        when(departmentMapper.findById(2L)).thenReturn(department);
+
+        UpdateContactRequest request = new UpdateContactRequest("new@example.com", "987654321");
+
+        EmployeeResponse response = employeeService.updateContact(1L, request, 99L);
+
+        verify(employeeMapper).updateContact(1L, "new@example.com", "987654321");
+        assertThat(response.email()).isEqualTo("new@example.com");
+        assertThat(response.phone()).isEqualTo("987654321");
+        assertThat(response.departmentName()).isEqualTo("IT");
+    }
+
+    @Test
+    void updateContactRejectsOtherRequester() {
+        Employee currentEmployee = employeeForUpdate();
+        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
+
+        UpdateContactRequest request = new UpdateContactRequest("new@example.com", "987654321");
+
+        assertThatThrownBy(() -> employeeService.updateContact(1L, request, 100L))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void updateContactRejectsEmailAlreadyInUse() {
+        Employee currentEmployee = employeeForUpdate();
+        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
+
+        Employee existing = new Employee();
+        existing.setId(2L);
+        when(employeeMapper.findByEmail("new@example.com")).thenReturn(existing);
+
+        UpdateContactRequest request = new UpdateContactRequest("new@example.com", "987654321");
+
+        assertThatThrownBy(() -> employeeService.updateContact(1L, request, 99L))
+                .isInstanceOf(DuplicateResourceException.class);
+    }
+
     private CreateEmployeeRequest validRequest() {
         return new CreateEmployeeRequest(
                 " emp010 ",
@@ -141,11 +253,27 @@ class EmployeeServiceImplTest {
         );
     }
 
+    private UpdateEmployeeRequest updateRequest(Long departmentId, BigDecimal salary) {
+        return new UpdateEmployeeRequest(
+                "John Doe",
+                "john@example.com",
+                "123",
+                "Dev",
+                departmentId,
+                salary,
+                LocalDate.now()
+        );
+    }
+
     private Department activeDepartment() {
+        return department(1L, "Engineering", true);
+    }
+
+    private Department department(Long id, String name, boolean active) {
         Department department = new Department();
-        department.setId(1L);
-        department.setName("Engineering");
-        department.setIsActive(true);
+        department.setId(id);
+        department.setName(name);
+        department.setIsActive(active);
         return department;
     }
 
@@ -165,5 +293,14 @@ class EmployeeServiceImplTest {
                 .createdAt(LocalDateTime.of(2026, 5, 18, 9, 0))
                 .updatedAt(LocalDateTime.of(2026, 5, 18, 9, 0))
                 .build();
+    }
+
+    private Employee employeeForUpdate() {
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setDepartmentId(2L);
+        employee.setSalary(BigDecimal.valueOf(1000));
+        employee.setAuthUserId(99L);
+        return employee;
     }
 }
