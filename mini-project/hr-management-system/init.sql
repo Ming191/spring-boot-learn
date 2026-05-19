@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
     CHECK (to_date >= from_date),
     total_days      INT             NOT NULL,
     reason          TEXT            NOT NULL,
-    status          ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+    status          ENUM('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
     reviewed_by     BIGINT,
     reviewer_note   VARCHAR(500),
     reviewed_at     DATETIME,
