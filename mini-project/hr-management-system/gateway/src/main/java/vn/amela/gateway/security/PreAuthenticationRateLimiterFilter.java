@@ -56,7 +56,7 @@ public class PreAuthenticationRateLimiterFilter implements GlobalFilter, Ordered
             return chain.filter(exchange);
         }
 
-        String path = exchange.getRequest().getPath().value();
+        String path = exchange.getRequest().getURI().getPath();
         if (path.startsWith("/actuator/health/") ||
             path.startsWith("/actuator/info/")) {
 
