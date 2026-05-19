@@ -11,5 +11,5 @@ public interface DepartmentService {
     List<DepartmentResponse> listAll();
     List<DepartmentResponse> listAllActive();
     DepartmentResponse update(Long id, UpdateDepartmentRequest request);
-    void deactivate(Long id);
+    void delete(Long id);
 }
