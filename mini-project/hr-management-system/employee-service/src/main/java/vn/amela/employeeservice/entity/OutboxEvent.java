@@ -16,6 +16,6 @@ public class OutboxEvent {
     private String payload;
     private OutboxEventStatus status;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDateTime publishedAt;
 
 }

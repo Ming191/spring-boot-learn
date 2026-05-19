@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS outbox_events (
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE INDEX idx_outbox_emp_status ON outbox_events (status);
+CREATE INDEX idx_outbox_emp_status_created_at ON outbox_events (status, created_at);
 
 CREATE INDEX idx_emp_status        ON employees (status);
 CREATE INDEX idx_emp_department    ON employees (department_id);
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS outbox_events (
      PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE INDEX idx_outbox_leave_status ON outbox_events (status);
+CREATE INDEX idx_outbox_leave_status_created_at ON outbox_events (status, created_at);
 
 CREATE INDEX idx_leave_employee_id  ON leave_requests (employee_id);
 CREATE INDEX idx_leave_status       ON leave_requests (status);
