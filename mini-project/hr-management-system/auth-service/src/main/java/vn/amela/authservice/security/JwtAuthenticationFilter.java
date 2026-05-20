@@ -11,6 +11,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import vn.amela.authservice.entity.enums.Role;
 
 import java.io.IOException;
 import java.util.List;
@@ -49,10 +50,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             Long userId = jwtService.extractId(token);
             String username = jwtService.extractUsername(token);
-            String role = jwtService.extractRole(token);
+            Role role = jwtService.extractRole(token);
 
             if (username == null || username.isBlank()
-                || role == null || role.isBlank()) {
+                || role == null) {
 
                 rejectToken(request, MISSING_CLAIMS);
                 filterChain.doFilter(request, response);
@@ -60,19 +61,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             List<SimpleGrantedAuthority> authorities = List.of(
-                new SimpleGrantedAuthority("ROLE_" + role)
+                new SimpleGrantedAuthority("ROLE_" + role.name())
             );
 
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                    userId,
+                    username,
+                    role
+                );
 
                 UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
-                        username,
+                        authenticatedUser,
                         null,
                         authorities
                     );
-
-                authentication.setDetails(userId);
 
                 SecurityContextHolder.getContext()
                     .setAuthentication(authentication);

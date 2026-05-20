@@ -11,6 +11,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import vn.amela.authservice.config.SecurityConfig;
 import vn.amela.authservice.controller.AuthController;
+import vn.amela.authservice.entity.enums.Role;
 import vn.amela.authservice.security.handler.CustomAccessDeniedHandler;
 import vn.amela.authservice.security.handler.CustomAuthenticationEntryPoint;
 import vn.amela.authservice.security.handler.SecurityErrorResponseWriter;
@@ -76,7 +77,7 @@ class AuthSecurityTest {
         when(jwtService.isTokenValid("employee-token")).thenReturn(true);
         when(jwtService.extractId("employee-token")).thenReturn(1L);
         when(jwtService.extractUsername("employee-token")).thenReturn("emp");
-        when(jwtService.extractRole("employee-token")).thenReturn("EMPLOYEE");
+        when(jwtService.extractRole("employee-token")).thenReturn(Role.EMPLOYEE);
 
         mockMvc.perform(get("/api/auth/admin/users")
                 .header("Authorization", "Bearer employee-token"))
@@ -87,5 +88,23 @@ class AuthSecurityTest {
             .andExpect(jsonPath("$.message").value("You do not have permission to access this resource"))
             .andExpect(jsonPath("$.path").value("/api/auth/admin/users"))
             .andExpect(jsonPath("$.errors", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("me returns typed current user response")
+    void meReturnsTypedCurrentUserResponse() throws Exception {
+        when(jwtService.isTokenValid("hr-token")).thenReturn(true);
+        when(jwtService.extractId("hr-token")).thenReturn(7L);
+        when(jwtService.extractUsername("hr-token")).thenReturn("hr_admin");
+        when(jwtService.extractRole("hr-token")).thenReturn(Role.HR);
+
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer hr-token"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.userId").value(7))
+            .andExpect(jsonPath("$.username").value("hr_admin"))
+            .andExpect(jsonPath("$.role").value("HR"))
+            .andExpect(jsonPath("$.authorities").doesNotExist());
     }
 }

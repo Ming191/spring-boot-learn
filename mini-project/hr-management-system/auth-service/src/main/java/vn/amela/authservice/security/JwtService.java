@@ -8,6 +8,7 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import vn.amela.authservice.entity.User;
+import vn.amela.authservice.entity.enums.Role;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -53,6 +54,7 @@ public class JwtService {
         return Jwts.parser()
             .verifyWith(getKey())
             .requireIssuer(ISSUER)
+            .requireAudience(AUDIENCE)
             .build()
             .parseSignedClaims(token)
             .getPayload();
@@ -66,8 +68,9 @@ public class JwtService {
         return extractClaims(token).get("username", String.class);
     }
 
-    public String extractRole(String token) {
-        return extractClaims(token).get("role", String.class);
+    public Role extractRole(String token) {
+        String role = extractClaims(token).get("role", String.class);
+        return role == null ? null : Role.valueOf(role);
     }
 
     public Boolean isTokenValid(String token) {
