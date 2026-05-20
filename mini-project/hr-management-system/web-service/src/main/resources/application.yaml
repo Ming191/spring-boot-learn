@@ -1,0 +1,28 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: web-service
+  thymeleaf:
+    cache: false
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 2000
+            readTimeout: 5000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+app:
+  web:
+    access-token-cookie: HR_ACCESS_TOKEN
+    refresh-token-cookie: HR_REFRESH_TOKEN
+    cookie-secure: false
+    access-token-max-age-seconds: 900
+    refresh-token-max-age-seconds: 604800

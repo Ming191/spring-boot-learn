@@ -4,7 +4,7 @@ include 'discovery-service'
 include 'gateway'
 include 'employee-service'
 include 'auth-service'
-//include 'web-service'
+include 'web-service'
 //include 'leave-service'
 //include 'notification-service'
 
