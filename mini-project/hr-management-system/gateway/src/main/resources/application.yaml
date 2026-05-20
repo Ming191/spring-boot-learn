@@ -128,6 +128,27 @@ spring:
                       maxBackoff: 2s
                       factor: 2
                       basedOnPreviousValue: false
+            - id: web-service
+              order: 100
+              uri: lb://WEB-SERVICE
+              predicates:
+                - Path=/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userKeyResolver}"
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: web-service-circuit-breaker
+                    fallbackUri: forward:/fallback/web-service
+                    statusCodes:
+                      - 500
+                      - 502
+                      - 503
+                      - 504
           globalcors:
             corsConfigurations:
               '[/**]':
@@ -162,6 +183,14 @@ gateway:
     - /api/auth/login
     - /api/auth/register
     - /api/auth/refresh
+    - /login
+    - /register
+    - /logout
+    - /assets/**
+    - /css/**
+    - /js/**
+    - /images/**
+    - /error/**
     - /actuator/health
     - /actuator/info
   authorization-rules:
@@ -204,6 +233,15 @@ resilience4j:
         failureRateThreshold: 50
         eventConsumerBufferSize: 10
         registerHealthIndicator: true
+      web-service-circuit-breaker:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        slidingWindowType: COUNT_BASED
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        registerHealthIndicator: true
   timelimiter:
     instances:
       auth-service-circuit-breaker:
@@ -213,5 +251,8 @@ resilience4j:
         timeoutDuration: 5s
         cancelRunningFuture: true
       leave-service-circuit-breaker:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+      web-service-circuit-breaker:
         timeoutDuration: 5s
         cancelRunningFuture: true
