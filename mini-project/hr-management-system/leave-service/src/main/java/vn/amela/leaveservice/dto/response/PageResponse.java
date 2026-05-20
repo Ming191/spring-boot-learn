@@ -8,7 +8,7 @@ import java.util.List;
 @Data
 @Builder
 public class PageResponse<T> {
-    private List<T> content;
+    private List<T> items;
     private int size;
     private int page;
     private int totalPages;
