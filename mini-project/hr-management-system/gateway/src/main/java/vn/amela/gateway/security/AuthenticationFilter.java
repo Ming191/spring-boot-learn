@@ -1,7 +1,5 @@
 package vn.amela.gateway.security;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +7,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
@@ -16,6 +15,8 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import vn.amela.gateway.dto.response.GatewayErrorResponse;
 import vn.amela.gateway.security.authorization.GatewayAuthorizationService;
 
@@ -29,11 +30,12 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
 
     private static final String USER_ID_HEADER = "X-User-Id";
     private static final String USERNAME_HEADER = "X-Username";
-    private static final String ROLE_HEADER = "X-Role";
+    private static final String USER_ROLE_HEADER = "X-User-Role";
+    private static final String ACCESS_TOKEN_COOKIE = "HR_ACCESS_TOKEN";
     private static final List<String> INTERNAL_HEADERS = List.of(
         USER_ID_HEADER,
         USERNAME_HEADER,
-        ROLE_HEADER
+        USER_ROLE_HEADER
     );
     private static final String AUTHENTICATION_REQUIRED = "Authentication is required";
     private static final String INVALID_TOKEN = "Invalid token";
@@ -55,13 +57,11 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             return chain.filter(sanitizedExchange);
         }
 
-        String authHeader = sanitizedRequest.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        String token = resolveToken(sanitizedRequest);
+        if (token == null) {
             return unauthorized(sanitizedExchange, AUTHENTICATION_REQUIRED);
         }
 
-        String token = authHeader.substring(7).trim();
         if (token.isBlank()) {
             return unauthorized(sanitizedExchange, INVALID_TOKEN);
         }
@@ -84,7 +84,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             ServerHttpRequest request = sanitizedRequest.mutate()
                 .header(USER_ID_HEADER, userId)
                 .header(USERNAME_HEADER, username)
-                .header(ROLE_HEADER, role)
+                .header(USER_ROLE_HEADER, role)
                 .build();
 
             return chain.filter(sanitizedExchange.mutate().request(request).build());
@@ -105,6 +105,16 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     @Override
     public int getOrder() {
         return -1;
+    }
+
+    private String resolveToken(ServerHttpRequest request) {
+        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7).trim();
+        }
+
+        HttpCookie cookie = request.getCookies().getFirst(ACCESS_TOKEN_COOKIE);
+        return cookie == null ? null : cookie.getValue();
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
@@ -135,7 +145,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             return response.writeWith(
                 Mono.just(response.bufferFactory().wrap(body))
             );
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             return response.setComplete();
         }
     }

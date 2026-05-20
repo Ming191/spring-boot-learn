@@ -1,7 +1,5 @@
 package vn.amela.gateway.security;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.jspecify.annotations.NonNull;
@@ -17,6 +15,8 @@ import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import vn.amela.gateway.security.authorization.GatewayAuthorizationProperties;
 import vn.amela.gateway.security.authorization.GatewayAuthorizationService;
 
@@ -76,7 +76,7 @@ class AuthenticationFilterTest {
             MockServerHttpRequest.post("/api/auth/login")
                 .header("X-User-Id", "1")
                 .header("X-Username", "attacker")
-                .header("X-Role", "HR")
+                .header("X-User-Role", "HR")
         );
         CapturingChain chain = new CapturingChain();
 
@@ -85,7 +85,7 @@ class AuthenticationFilterTest {
         HttpHeaders headers = chain.exchange().getRequest().getHeaders();
         assertThat(headers.getFirst("X-User-Id")).isNull();
         assertThat(headers.getFirst("X-Username")).isNull();
-        assertThat(headers.getFirst("X-Role")).isNull();
+        assertThat(headers.getFirst("X-User-Role")).isNull();
     }
 
     @Test
@@ -110,7 +110,7 @@ class AuthenticationFilterTest {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE))
                 .header("X-User-Id", "999")
                 .header("X-Username", "forged")
-                .header("X-Role", "HR")
+                .header("X-User-Role", "HR")
         );
         CapturingChain chain = new CapturingChain();
 
@@ -119,7 +119,7 @@ class AuthenticationFilterTest {
         HttpHeaders headers = chain.exchange().getRequest().getHeaders();
         assertThat(headers.getFirst("X-User-Id")).isEqualTo("1");
         assertThat(headers.getFirst("X-Username")).isEqualTo("emp");
-        assertThat(headers.getFirst("X-Role")).isEqualTo("EMPLOYEE");
+        assertThat(headers.getFirst("X-User-Role")).isEqualTo("EMPLOYEE");
     }
 
     @Test
@@ -158,7 +158,7 @@ class AuthenticationFilterTest {
         assertThat(exchange.getResponse().getStatusCode()).isNull();
 
         HttpHeaders headers = chain.exchange().getRequest().getHeaders();
-        assertThat(headers.getFirst("X-Role")).isEqualTo("HR");
+        assertThat(headers.getFirst("X-User-Role")).isEqualTo("HR");
     }
 
     @Test
