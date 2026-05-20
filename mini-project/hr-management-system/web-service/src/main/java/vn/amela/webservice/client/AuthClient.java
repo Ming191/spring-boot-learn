@@ -9,10 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import vn.amela.webservice.dto.request.LoginForm;
 import vn.amela.webservice.dto.request.RefreshTokenRequest;
 import vn.amela.webservice.dto.request.RegisterForm;
+import vn.amela.webservice.dto.response.CurrentUserResponse;
 import vn.amela.webservice.dto.response.TokenResponse;
 import vn.amela.webservice.dto.response.UserResponse;
-
-import java.util.Map;
 
 @FeignClient(name = "auth-service", contextId = "authClient", path = "/api/auth")
 public interface AuthClient {
@@ -27,7 +26,7 @@ public interface AuthClient {
     TokenResponse refresh(@RequestBody RefreshTokenRequest request);
 
     @GetMapping("/me")
-    Map<String, Object> me(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization);
+    CurrentUserResponse me(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization);
 
     @PostMapping("/logout")
     void logout(
