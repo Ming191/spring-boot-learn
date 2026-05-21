@@ -20,7 +20,7 @@ import vn.amela.employeeservice.mapper.DepartmentMapper;
 import vn.amela.employeeservice.mapper.EmployeeMapper;
 import vn.amela.employeeservice.mapper.OutboxEventMapper;
 import vn.amela.employeeservice.service.EmployeeService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Locale;
 

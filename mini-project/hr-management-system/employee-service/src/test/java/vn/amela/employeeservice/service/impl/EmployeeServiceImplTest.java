@@ -1,6 +1,6 @@
 package vn.amela.employeeservice.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -12,8 +12,10 @@ import vn.amela.employeeservice.entity.Employee;
 import vn.amela.employeeservice.entity.OutboxEvent;
 import vn.amela.employeeservice.entity.enums.EmployeeStatus;
 import vn.amela.employeeservice.exception.BusinessException;
+import vn.amela.employeeservice.mapper.DepartmentMapper;
 import vn.amela.employeeservice.mapper.EmployeeMapper;
 import vn.amela.employeeservice.mapper.OutboxEventMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,18 +36,34 @@ class EmployeeServiceImplTest {
     @Mock
     private ObjectMapper objectMapper;
 
+    @Mock
+    private DepartmentMapper departmentMapper;
+
     @InjectMocks
     private EmployeeServiceImpl employeeService;
+
+
+    @BeforeEach
+    void setUp() {
+        objectMapper = new ObjectMapper();
+        employeeService = new EmployeeServiceImpl(
+                employeeMapper,
+                departmentMapper,
+                outboxEventMapper,
+                objectMapper,
+                leaveServiceClient
+        );
+    }
 
     @Test
     void testDeactivate_Success() throws Exception {
         Employee currentEmployee = new Employee();
         currentEmployee.setId(1L);
         currentEmployee.setStatus(EmployeeStatus.ACTIVE);
+
         when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
-        
         when(leaveServiceClient.hasPendingLeavesByEmployeeId(1L)).thenReturn(false);
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        when(employeeMapper.deactivate(1L)).thenReturn(1);
 
         employeeService.deactivate(1L);
 
@@ -81,5 +99,20 @@ class EmployeeServiceImplTest {
 
         assertThrows(BusinessException.class, () -> employeeService.deactivate(1L));
         verify(employeeMapper, never()).deactivate(1L);
+    }
+
+    @Test
+    void testDeactivate_UpdateCountZero_Throws() {
+        Employee currentEmployee = new Employee();
+        currentEmployee.setId(1L);
+        currentEmployee.setStatus(EmployeeStatus.ACTIVE);
+
+        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
+        when(leaveServiceClient.hasPendingLeavesByEmployeeId(1L)).thenReturn(false);
+        when(employeeMapper.deactivate(1L)).thenReturn(0);
+
+        assertThrows(BusinessException.class, () -> employeeService.deactivate(1L));
+
+        verify(outboxEventMapper, never()).insert(any());
     }
 }
