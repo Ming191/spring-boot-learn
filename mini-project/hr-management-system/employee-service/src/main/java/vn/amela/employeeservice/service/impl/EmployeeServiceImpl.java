@@ -130,7 +130,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
 
         currentEmployee.setEmail(email);
-        currentEmployee.setPhone(request.phone());
+        currentEmployee.setPhone(phone);
 
         Department department = currentEmployee.getDepartmentId() != null 
                 ? departmentMapper.findById(currentEmployee.getDepartmentId()) 
