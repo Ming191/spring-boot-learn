@@ -1,6 +1,7 @@
 package vn.amela.employeeservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
@@ -12,7 +13,6 @@ import vn.amela.employeeservice.dto.response.PageResponse;
 import vn.amela.employeeservice.entity.Department;
 import vn.amela.employeeservice.entity.Employee;
 import vn.amela.employeeservice.entity.OutboxEvent;
-import vn.amela.employeeservice.entity.enums.OutboxEventStatus;
 import vn.amela.employeeservice.exception.BusinessException;
 import vn.amela.employeeservice.exception.DuplicateResourceException;
 import vn.amela.employeeservice.exception.ResourceNotFoundException;
@@ -22,8 +22,8 @@ import vn.amela.employeeservice.mapper.OutboxEventMapper;
 import vn.amela.employeeservice.service.EmployeeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.time.LocalDateTime;
 import java.util.Locale;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -52,19 +52,14 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Transactional
     public EmployeeResponse updateByHr(Long id, UpdateEmployeeRequest request) {
+        String fullName = normalizeRequiredText(request.fullName(), "Full name");
+        String email = normalizeEmail(request.email());
+        String phone = normalizeRequiredText(request.phone(), "Phone");
+        String position = normalizeRequiredText(request.position(), "Position");
+
         Employee currentEmployee = employeeMapper.findById(id);
         if (currentEmployee == null) {
             throw new ResourceNotFoundException("Employee not found");
-        }
-
-        if (request.email() == null || request.email().isBlank()) {
-            throw new BusinessException("Email must not be blank");
-        }
-
-        String email = normalizeEmail(request.email());
-        Employee existing = employeeMapper.findByEmail(email);
-        if (existing != null && !existing.getId().equals(id)) {
-            throw new DuplicateResourceException("Email is already in use");
         }
 
         Department department = requireActiveDepartment(request.departmentId());
@@ -74,15 +69,19 @@ public class EmployeeServiceImpl implements EmployeeService {
         boolean isSalaryChanged = currentEmployee.getSalary() == null ||
                 currentEmployee.getSalary().compareTo(request.salary()) != 0;
 
-        currentEmployee.setFullName(request.fullName());
+        currentEmployee.setFullName(fullName);
         currentEmployee.setEmail(email);
-        currentEmployee.setPhone(request.phone());
-        currentEmployee.setPosition(request.position());
+        currentEmployee.setPhone(phone);
+        currentEmployee.setPosition(position);
         currentEmployee.setDepartmentId(request.departmentId());
         currentEmployee.setSalary(request.salary());
         currentEmployee.setStartDate(request.startDate());
 
-        employeeMapper.updateByHr(currentEmployee);
+        try {
+            employeeMapper.updateByHr(currentEmployee);
+        } catch (DuplicateKeyException e) {
+            throw new DuplicateResourceException("Employee already exists");
+        }
 
         if (isDepartmentChanged || isSalaryChanged) {
             try {
@@ -91,8 +90,6 @@ public class EmployeeServiceImpl implements EmployeeService {
                         .aggregateId(currentEmployee.getId())
                         .eventType("employee.status.changed")
                         .payload(objectMapper.writeValueAsString(currentEmployee))
-                        .status(OutboxEventStatus.PENDING)
-                        .createdAt(LocalDateTime.now())
                         .build();
                 outboxEventMapper.insert(event);
             } catch (Exception e) {
@@ -111,17 +108,17 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new ResourceNotFoundException("Employee not found");
         }
 
-        if (!requesterId.equals(currentEmployee.getAuthUserId())) {
+        if (!Objects.equals(requesterId, currentEmployee.getAuthUserId())) {
             throw new BusinessException("You are not authorized to update this employee's contact");
         }
 
         String email = normalizeEmail(request.email());
-        Employee existing = employeeMapper.findByEmail(email);
-        if (existing != null && !existing.getId().equals(id)) {
-            throw new DuplicateResourceException("Email is already in use");
-        }
 
-        employeeMapper.updateContact(id, email, request.phone());
+        try {
+            employeeMapper.updateContact(id, email, request.phone());
+        } catch (DuplicateKeyException e) {
+            throw new DuplicateResourceException("Email already exists: " + email);
+        }
 
         currentEmployee.setEmail(email);
         currentEmployee.setPhone(request.phone());
