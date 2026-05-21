@@ -100,7 +100,7 @@ public class EmployeeServiceImpl implements EmployeeService {
                         .payload(objectMapper.writeValueAsString(currentEmployee))
                         .build();
                 outboxEventMapper.insert(event);
-            } catch (Exception e) {
+            } catch (JsonProcessingException e) {
                 throw new BusinessException("Failed to serialize outbox event payload");
             }
         }
