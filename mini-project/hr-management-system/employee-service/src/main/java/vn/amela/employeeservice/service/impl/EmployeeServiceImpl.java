@@ -121,9 +121,10 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
 
         String email = normalizeEmail(request.email());
+        String phone = normalizeRequiredText(request.phone(), "Phone");
 
         try {
-            employeeMapper.updateContact(id, email, request.phone());
+            employeeMapper.updateContact(id, email, phone);
         } catch (DuplicateKeyException e) {
             throw new DuplicateResourceException("Email already exists: " + email);
         }
