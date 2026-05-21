@@ -54,7 +54,7 @@ class EmployeeServiceImplTest {
         ArgumentCaptor<OutboxEvent> eventCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
         verify(outboxEventMapper).insert(eventCaptor.capture());
         OutboxEvent event = eventCaptor.getValue();
-        assertEquals("EMPLOYEE", event.getAggregateType());
+        assertEquals("Employee", event.getAggregateType());
         assertEquals("employee.deactivated", event.getEventType());
         assertEquals(1L, event.getAggregateId());
     }

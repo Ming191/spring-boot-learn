@@ -81,7 +81,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         
         try {
             OutboxEvent event = OutboxEvent.builder()
-                    .aggregateType("EMPLOYEE")
+                    .aggregateType("Employee")
                     .aggregateId(id)
                     .eventType("employee.deactivated")
                     .payload(objectMapper.writeValueAsString(currentEmployee))
