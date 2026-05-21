@@ -64,6 +64,14 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         Department department = requireActiveDepartment(request.departmentId());
 
+        if (request.salary() == null) {
+            throw new BusinessException("Salary is required");
+        }
+
+        if (request.startDate() == null) {
+            throw new BusinessException("Start date is required");
+        }
+
         boolean isDepartmentChanged = currentEmployee.getDepartmentId() == null ||
                 !currentEmployee.getDepartmentId().equals(request.departmentId());
         boolean isSalaryChanged = currentEmployee.getSalary() == null ||
@@ -80,7 +88,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         try {
             employeeMapper.updateByHr(currentEmployee);
         } catch (DuplicateKeyException e) {
-            throw new DuplicateResourceException("Employee already exists");
+            throw new DuplicateResourceException("Email already exists: " + email);
         }
 
         if (isDepartmentChanged || isSalaryChanged) {
