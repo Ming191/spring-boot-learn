@@ -14,7 +14,6 @@ import vn.amela.employeeservice.entity.Department;
 import vn.amela.employeeservice.entity.Employee;
 import vn.amela.employeeservice.entity.OutboxEvent;
 import vn.amela.employeeservice.entity.enums.EmployeeStatus;
-import vn.amela.employeeservice.entity.enums.OutboxEventStatus;
 import vn.amela.employeeservice.exception.BusinessException;
 import vn.amela.employeeservice.exception.ResourceNotFoundException;
 import vn.amela.employeeservice.mapper.DepartmentMapper;
@@ -23,7 +22,6 @@ import vn.amela.employeeservice.mapper.OutboxEventMapper;
 import vn.amela.employeeservice.service.EmployeeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.time.LocalDateTime;
 import java.util.Locale;
 
 @Service
@@ -76,8 +74,13 @@ public class EmployeeServiceImpl implements EmployeeService {
         if (leaveServiceClient.hasPendingLeavesByEmployeeId(id)) {
             throw new BusinessException("Cannot deactivate employee with pending leaves");
         }
-        
-        employeeMapper.deactivate(id);
+
+        int updatedRows = employeeMapper.deactivate(id);
+        if (updatedRows == 0) {
+            throw new BusinessException("Employee could not be deactivated");
+        }
+
+        currentEmployee.setStatus(EmployeeStatus.INACTIVE);
         
         try {
             OutboxEvent event = OutboxEvent.builder()
@@ -85,8 +88,6 @@ public class EmployeeServiceImpl implements EmployeeService {
                     .aggregateId(id)
                     .eventType("employee.deactivated")
                     .payload(objectMapper.writeValueAsString(currentEmployee))
-                    .status(OutboxEventStatus.PENDING)
-                    .createdAt(LocalDateTime.now())
                     .build();
             outboxEventMapper.insert(event);
         } catch (Exception e) {
