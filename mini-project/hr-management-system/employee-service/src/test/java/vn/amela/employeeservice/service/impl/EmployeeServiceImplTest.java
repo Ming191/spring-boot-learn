@@ -42,19 +42,6 @@ class EmployeeServiceImplTest {
     @InjectMocks
     private EmployeeServiceImpl employeeService;
 
-
-    @BeforeEach
-    void setUp() {
-        objectMapper = new ObjectMapper();
-        employeeService = new EmployeeServiceImpl(
-                employeeMapper,
-                departmentMapper,
-                outboxEventMapper,
-                objectMapper,
-                leaveServiceClient
-        );
-    }
-
     @Test
     void testDeactivate_Success() throws Exception {
         Employee currentEmployee = new Employee();
