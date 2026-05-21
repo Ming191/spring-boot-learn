@@ -1,6 +1,7 @@
 package vn.amela.employeeservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
@@ -51,8 +52,12 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         Employee employee = buildEmployee(request, employeeCode, email);
 
-        employeeMapper.insert(employee);
-        saveEmployeeCreatedEvent(employee);
+        try {
+            employeeMapper.insert(employee);
+            saveEmployeeCreatedEvent(employee);
+        } catch (DuplicateKeyException e) {
+            throw new DuplicateResourceException("Employee with the same code, email, or auth user already exists");
+        }
 
         Employee createdEmployee = loadCreatedEmployee(employee.getId());
 
