@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
 import vn.amela.employeeservice.dto.request.EmployeeFilterRequest;
 import vn.amela.employeeservice.dto.request.UpdateContactRequest;
@@ -12,7 +13,9 @@ import vn.amela.employeeservice.dto.response.EmployeeResponse;
 import vn.amela.employeeservice.dto.response.PageResponse;
 import vn.amela.employeeservice.entity.Department;
 import vn.amela.employeeservice.entity.Employee;
+import vn.amela.employeeservice.entity.EmployeeCreatedPayload;
 import vn.amela.employeeservice.entity.OutboxEvent;
+import vn.amela.employeeservice.entity.enums.EmployeeStatus;
 import vn.amela.employeeservice.exception.BusinessException;
 import vn.amela.employeeservice.exception.DuplicateResourceException;
 import vn.amela.employeeservice.exception.ResourceNotFoundException;
@@ -20,8 +23,8 @@ import vn.amela.employeeservice.mapper.DepartmentMapper;
 import vn.amela.employeeservice.mapper.EmployeeMapper;
 import vn.amela.employeeservice.mapper.OutboxEventMapper;
 import vn.amela.employeeservice.service.EmployeeService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -29,14 +32,39 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class EmployeeServiceImpl implements EmployeeService {
 
+    private static final String EMPLOYEE_CREATED_EVENT = "employee.created";
+    private static final String EMPLOYEE_AGGREGATE_TYPE = "Employee";
+    private static final String EMPLOYEE_STATUS_CHANGED_EVENT = "employee.status.changed";
+    private static final String EMPLOYEE_UPDATE_AGGREGATE_TYPE = "EMPLOYEE";
+
     protected final EmployeeMapper employeeMapper;
     protected final DepartmentMapper departmentMapper;
-    protected final OutboxEventMapper outboxEventMapper;
-    protected final ObjectMapper objectMapper;
+    private final OutboxEventMapper outboxEventMapper;
+    private final JsonMapper objectMapper;
 
     @Override
+    @Transactional
     public EmployeeResponse create(CreateEmployeeRequest request) {
-        return null;
+        String employeeCode = normalizeEmployeeCode(request.employeeCode());
+        String email = normalizeEmail(request.email());
+        Department department = requireActiveDepartment(request.departmentId());
+
+        ensureEmployeeCodeAvailable(employeeCode);
+        ensureEmailAvailable(email);
+        ensureAuthUserAvailable(request.authUserId());
+
+        Employee employee = buildEmployee(request, employeeCode, email);
+
+        try {
+            employeeMapper.insert(employee);
+            saveEmployeeCreatedEvent(employee);
+        } catch (DuplicateKeyException e) {
+            throw new DuplicateResourceException("Employee with the same code, email, or auth user already exists");
+        }
+
+        Employee createdEmployee = loadCreatedEmployee(employee.getId());
+
+        return toResponse(createdEmployee, department.getName());
     }
 
     @Override
@@ -92,17 +120,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
 
         if (isDepartmentChanged || isSalaryChanged) {
-            try {
-                OutboxEvent event = OutboxEvent.builder()
-                        .aggregateType("EMPLOYEE")
-                        .aggregateId(currentEmployee.getId())
-                        .eventType("employee.status.changed")
-                        .payload(objectMapper.writeValueAsString(currentEmployee))
-                        .build();
-                outboxEventMapper.insert(event);
-            } catch (JsonProcessingException e) {
-                throw new BusinessException("Failed to serialize outbox event payload");
-            }
+            saveEmployeeStatusChangedEvent(currentEmployee);
         }
 
         return toResponse(currentEmployee, department.getName());
@@ -132,8 +150,8 @@ public class EmployeeServiceImpl implements EmployeeService {
         currentEmployee.setEmail(email);
         currentEmployee.setPhone(phone);
 
-        Department department = currentEmployee.getDepartmentId() != null 
-                ? departmentMapper.findById(currentEmployee.getDepartmentId()) 
+        Department department = currentEmployee.getDepartmentId() != null
+                ? departmentMapper.findById(currentEmployee.getDepartmentId())
                 : null;
         String departmentName = department != null ? department.getName() : null;
 
@@ -142,6 +160,90 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public void deactivate(Long id) {
+    }
+
+    private String normalizeEmployeeCode(String employeeCode) {
+        return normalizeRequiredText(employeeCode, "Employee code").toUpperCase(Locale.ROOT);
+    }
+
+    private void ensureEmployeeCodeAvailable(String employeeCode) {
+        if (employeeMapper.findByEmployeeCode(employeeCode) != null) {
+            throw new DuplicateResourceException("Employee code already exists");
+        }
+    }
+
+    private void ensureEmailAvailable(String email) {
+        if (employeeMapper.findByEmail(email) != null) {
+            throw new DuplicateResourceException("Email already exists");
+        }
+    }
+
+    private void ensureAuthUserAvailable(Long authUserId) {
+        if (authUserId == null) {
+            throw new BusinessException("Auth user ID is required");
+        }
+        if (employeeMapper.findByAuthUserId(authUserId) != null) {
+            throw new DuplicateResourceException("Auth user already assigned to an employee");
+        }
+    }
+
+    private Employee loadCreatedEmployee(Long employeeId) {
+        Employee createdEmployee = employeeMapper.findById(employeeId);
+        if (createdEmployee == null) {
+            throw new BusinessException("Failed to load created employee");
+        }
+        return createdEmployee;
+    }
+
+    private void saveEmployeeCreatedEvent(Employee employee) {
+        EmployeeCreatedPayload payload = new EmployeeCreatedPayload(
+                EMPLOYEE_CREATED_EVENT,
+                EMPLOYEE_AGGREGATE_TYPE,
+                employee.getId(),
+                employee.getEmployeeCode(),
+                employee.getFullName(),
+                employee.getEmail(),
+                employee.getDepartmentId(),
+                employee.getPosition(),
+                Instant.now()
+        );
+
+        String payloadJson = objectMapper.writeValueAsString(payload);
+
+        OutboxEvent event = OutboxEvent.builder()
+                .aggregateType(EMPLOYEE_AGGREGATE_TYPE)
+                .aggregateId(employee.getId())
+                .eventType(EMPLOYEE_CREATED_EVENT)
+                .payload(payloadJson)
+                .build();
+
+        outboxEventMapper.insert(event);
+    }
+
+    private void saveEmployeeStatusChangedEvent(Employee employee) {
+        OutboxEvent event = OutboxEvent.builder()
+                .aggregateType(EMPLOYEE_UPDATE_AGGREGATE_TYPE)
+                .aggregateId(employee.getId())
+                .eventType(EMPLOYEE_STATUS_CHANGED_EVENT)
+                .payload(objectMapper.writeValueAsString(employee))
+                .build();
+
+        outboxEventMapper.insert(event);
+    }
+
+    private Employee buildEmployee(CreateEmployeeRequest request, String employeeCode, String email) {
+        return Employee.builder()
+                .employeeCode(employeeCode)
+                .fullName(normalizeRequiredText(request.fullName(), "Full name"))
+                .email(email)
+                .phone(normalizeRequiredText(request.phone(), "Phone"))
+                .position(normalizeRequiredText(request.position(), "Position"))
+                .departmentId(request.departmentId())
+                .authUserId(request.authUserId())
+                .salary(request.salary())
+                .startDate(request.startDate())
+                .status(EmployeeStatus.ACTIVE)
+                .build();
     }
 
     protected String normalizeEmail(String email) {
