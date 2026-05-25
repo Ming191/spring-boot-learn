@@ -105,6 +105,7 @@
         SET status = 'INACTIVE'
 
         WHERE id = #{id}
+            AND status = 'ACTIVE'
     </update>
 
     <select id="findById" resultType="vn.amela.employeeservice.entity.Employee">
