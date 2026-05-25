@@ -68,11 +68,32 @@ spring:
                       - 502
                       - 503
                       - 504
-            - id: auth-service-views
+            - id: auth-service-pages
               order: 20
               uri: lb://AUTH-SERVICE
               predicates:
-                - Path=/login,/register,/logout,/auth-assets/**
+                - Path=/login,/register,/logout
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{`@ipKeyResolver`}"
+                    redis-rate-limiter.replenishRate: 2
+                    redis-rate-limiter.burstCapacity: 5
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: auth-service-circuit-breaker
+                    fallbackUri: forward:/fallback/auth-service
+                    statusCodes:
+                      - 500
+                      - 502
+                      - 503
+                      - 504
+            - id: auth-service-assets
+              order: 21
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/auth-assets/**
             - id: employee-service
               uri: lb://EMPLOYEE-SERVICE
               predicates:
