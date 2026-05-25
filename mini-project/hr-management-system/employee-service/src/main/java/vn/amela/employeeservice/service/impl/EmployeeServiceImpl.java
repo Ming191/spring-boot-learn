@@ -26,6 +26,7 @@ import vn.amela.employeeservice.service.EmployeeService;
 
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +34,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private static final String EMPLOYEE_CREATED_EVENT = "employee.created";
     private static final String EMPLOYEE_AGGREGATE_TYPE = "Employee";
+    private static final String EMPLOYEE_STATUS_CHANGED_EVENT = "employee.status.changed";
+    private static final String EMPLOYEE_UPDATE_AGGREGATE_TYPE = "EMPLOYEE";
 
     protected final EmployeeMapper employeeMapper;
     protected final DepartmentMapper departmentMapper;
@@ -75,13 +78,84 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @Transactional
     public EmployeeResponse updateByHr(Long id, UpdateEmployeeRequest request) {
-        return null;
+        String fullName = normalizeRequiredText(request.fullName(), "Full name");
+        String email = normalizeEmail(request.email());
+        String phone = normalizeRequiredText(request.phone(), "Phone");
+        String position = normalizeRequiredText(request.position(), "Position");
+
+        Employee currentEmployee = employeeMapper.findById(id);
+        if (currentEmployee == null) {
+            throw new ResourceNotFoundException("Employee not found");
+        }
+
+        Department department = requireActiveDepartment(request.departmentId());
+
+        if (request.salary() == null) {
+            throw new BusinessException("Salary is required");
+        }
+
+        if (request.startDate() == null) {
+            throw new BusinessException("Start date is required");
+        }
+
+        boolean isDepartmentChanged = currentEmployee.getDepartmentId() == null ||
+                !currentEmployee.getDepartmentId().equals(request.departmentId());
+        boolean isSalaryChanged = currentEmployee.getSalary() == null ||
+                currentEmployee.getSalary().compareTo(request.salary()) != 0;
+
+        currentEmployee.setFullName(fullName);
+        currentEmployee.setEmail(email);
+        currentEmployee.setPhone(phone);
+        currentEmployee.setPosition(position);
+        currentEmployee.setDepartmentId(request.departmentId());
+        currentEmployee.setSalary(request.salary());
+        currentEmployee.setStartDate(request.startDate());
+
+        try {
+            employeeMapper.updateByHr(currentEmployee);
+        } catch (DuplicateKeyException e) {
+            throw new DuplicateResourceException("Email already exists: " + email);
+        }
+
+        if (isDepartmentChanged || isSalaryChanged) {
+            saveEmployeeStatusChangedEvent(currentEmployee);
+        }
+
+        return toResponse(currentEmployee, department.getName());
     }
 
     @Override
+    @Transactional
     public EmployeeResponse updateContact(Long id, UpdateContactRequest request, Long requesterId) {
-        return null;
+        Employee currentEmployee = employeeMapper.findById(id);
+        if (currentEmployee == null) {
+            throw new ResourceNotFoundException("Employee not found");
+        }
+
+        if (!Objects.equals(requesterId, currentEmployee.getAuthUserId())) {
+            throw new BusinessException("You are not authorized to update this employee's contact");
+        }
+
+        String email = normalizeEmail(request.email());
+        String phone = normalizeRequiredText(request.phone(), "Phone");
+
+        try {
+            employeeMapper.updateContact(id, email, phone);
+        } catch (DuplicateKeyException e) {
+            throw new DuplicateResourceException("Email already exists: " + email);
+        }
+
+        currentEmployee.setEmail(email);
+        currentEmployee.setPhone(phone);
+
+        Department department = currentEmployee.getDepartmentId() != null
+                ? departmentMapper.findById(currentEmployee.getDepartmentId())
+                : null;
+        String departmentName = department != null ? department.getName() : null;
+
+        return toResponse(currentEmployee, departmentName);
     }
 
     @Override
@@ -141,6 +215,17 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .aggregateId(employee.getId())
                 .eventType(EMPLOYEE_CREATED_EVENT)
                 .payload(payloadJson)
+                .build();
+
+        outboxEventMapper.insert(event);
+    }
+
+    private void saveEmployeeStatusChangedEvent(Employee employee) {
+        OutboxEvent event = OutboxEvent.builder()
+                .aggregateType(EMPLOYEE_UPDATE_AGGREGATE_TYPE)
+                .aggregateId(employee.getId())
+                .eventType(EMPLOYEE_STATUS_CHANGED_EVENT)
+                .payload(objectMapper.writeValueAsString(employee))
                 .build();
 
         outboxEventMapper.insert(event);
