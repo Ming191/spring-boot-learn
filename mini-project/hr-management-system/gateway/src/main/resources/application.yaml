@@ -68,6 +68,11 @@ spring:
                       - 502
                       - 503
                       - 504
+            - id: auth-service-views
+              order: 20
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/login,/register,/logout,/auth-assets/**
             - id: employee-service
               uri: lb://EMPLOYEE-SERVICE
               predicates:
@@ -128,40 +133,11 @@ spring:
                       maxBackoff: 2s
                       factor: 2
                       basedOnPreviousValue: false
-            - id: web-service
-              order: 100
-              uri: lb://WEB-SERVICE
+            - id: employee-service-views
+              order: 90
+              uri: lb://EMPLOYEE-SERVICE
               predicates:
-                - Path=/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@userKeyResolver}"
-                    redis-rate-limiter.replenishRate: 20
-                    redis-rate-limiter.burstCapacity: 40
-                    redis-rate-limiter.requestedTokens: 1
-                - name: CircuitBreaker
-                  args:
-                    name: web-service-circuit-breaker
-                    fallbackUri: forward:/fallback/web-service
-                    statusCodes:
-                      - 500
-                      - 502
-                      - 503
-                      - 504
-          globalcors:
-            corsConfigurations:
-              '[/**]':
-                allowedOrigins:
-                  - "http://localhost:3000"
-                allowedMethods:
-                  - GET
-                  - POST
-                  - PUT
-                  - DELETE
-                  - OPTIONS
-                allowedHeaders: "*"
-                allowCredentials: true
+                - Path=/employees,/employees/**,/departments,/departments/**,/css/**
 eureka:
   client:
     service-url:
@@ -186,6 +162,7 @@ gateway:
     - /login
     - /register
     - /logout
+    - /auth-assets/**
     - /assets/**
     - /css/**
     - /js/**
