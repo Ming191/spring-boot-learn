@@ -219,4 +219,10 @@
           AND status = 'ACTIVE'
 
     </select>
+    <select id="existsActiveByEmployeeId" resultType="java.lang.Boolean">
+        SELECT COUNT(*) &gt; 0 FROM employees
+
+        WHERE id = #{employeeId}
+          AND status = 'ACTIVE'
+    </select>
 </mapper>
