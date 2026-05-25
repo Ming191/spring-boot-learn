@@ -75,7 +75,16 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public EmployeeResponse getById(Long id, Long requesterId, String requesterRole) {
-        return null;
+        Employee employee = employeeMapper.findById(id);
+        if (employee == null) {
+            throw new ResourceNotFoundException("Employee not found");
+        }
+
+        if (!"HR".equalsIgnoreCase(requesterRole) && !Objects.equals(requesterId, employee.getAuthUserId())) {
+            throw new BusinessException("You are not authorized to view this employee");
+        }
+
+        return toResponse(employee, findDepartmentName(employee.getDepartmentId()));
     }
 
     @Override

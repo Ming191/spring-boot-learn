@@ -2,9 +2,17 @@
 -- HR Management System — Database Schema
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS db_auth;
-CREATE DATABASE IF NOT EXISTS db_emp;
-CREATE DATABASE IF NOT EXISTS db_leave;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS db_auth
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS db_emp
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS db_leave
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
 
 -- ============================================================
 -- db_auth — Authentication & Authorization

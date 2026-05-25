@@ -13,16 +13,16 @@ public record EmployeeFilterRequest (
         EmployeeStatus status,
         LocalDate startDateFrom,
         LocalDate startDateTo,
-        int page,
-        int size,
+        Integer page,
+        Integer size,
         String sortBy,
         String sortDirection
 ) {
     public EmployeeFilterRequest {
-        if (page < 0) {
+        if (page == null || page < 0) {
             page = 0;
         }
-        if (size <= 0) {
+        if (size == null || size <= 0) {
             size = 10;
         }
     }
