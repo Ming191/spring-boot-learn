@@ -3,8 +3,6 @@ package vn.amela.employeeservice.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.json.JsonMapper;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
 import vn.amela.employeeservice.dto.request.EmployeeFilterRequest;
 import vn.amela.employeeservice.dto.request.UpdateContactRequest;
@@ -13,9 +11,6 @@ import vn.amela.employeeservice.dto.response.EmployeeResponse;
 import vn.amela.employeeservice.dto.response.PageResponse;
 import vn.amela.employeeservice.entity.Department;
 import vn.amela.employeeservice.entity.Employee;
-import vn.amela.employeeservice.entity.EmployeeCreatedPayload;
-import vn.amela.employeeservice.entity.OutboxEvent;
-import vn.amela.employeeservice.entity.enums.EmployeeStatus;
 import vn.amela.employeeservice.exception.BusinessException;
 import vn.amela.employeeservice.exception.DuplicateResourceException;
 import vn.amela.employeeservice.exception.ResourceNotFoundException;
@@ -23,6 +18,7 @@ import vn.amela.employeeservice.mapper.DepartmentMapper;
 import vn.amela.employeeservice.mapper.EmployeeMapper;
 import vn.amela.employeeservice.mapper.OutboxEventMapper;
 import vn.amela.employeeservice.service.EmployeeService;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.Locale;
@@ -39,8 +35,6 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     protected final EmployeeMapper employeeMapper;
     protected final DepartmentMapper departmentMapper;
-    private final OutboxEventMapper outboxEventMapper;
-    private final JsonMapper objectMapper;
 
     @Override
     @Transactional
@@ -159,7 +153,39 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @Transactional
     public void deactivate(Long id) {
+        Employee currentEmployee = employeeMapper.findById(id);
+        if (currentEmployee == null) {
+            throw new ResourceNotFoundException("Employee not found");
+        }
+        
+        if (!EmployeeStatus.ACTIVE.equals(currentEmployee.getStatus())) {
+            throw new BusinessException("Employee is not active");
+        }
+        
+        if (leaveServiceClient.hasPendingLeavesByEmployeeId(id)) {
+            throw new BusinessException("Cannot deactivate employee with pending leaves");
+        }
+
+        int updatedRows = employeeMapper.deactivate(id);
+        if (updatedRows == 0) {
+            throw new BusinessException("Employee could not be deactivated");
+        }
+
+        currentEmployee.setStatus(EmployeeStatus.INACTIVE);
+        
+        try {
+            OutboxEvent event = OutboxEvent.builder()
+                    .aggregateType("Employee")
+                    .aggregateId(id)
+                    .eventType("employee.deactivated")
+                    .payload(objectMapper.writeValueAsString(currentEmployee))
+                    .build();
+            outboxEventMapper.insert(event);
+        } catch (Exception e) {
+            throw new BusinessException("Failed to serialize outbox event payload");
+        }
     }
 
     private String normalizeEmployeeCode(String employeeCode) {
