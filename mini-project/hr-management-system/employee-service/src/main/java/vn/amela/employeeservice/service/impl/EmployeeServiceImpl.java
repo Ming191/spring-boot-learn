@@ -3,6 +3,8 @@ package vn.amela.employeeservice.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import vn.amela.employeeservice.client.LeaveServiceClient;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
 import vn.amela.employeeservice.dto.request.EmployeeFilterRequest;
 import vn.amela.employeeservice.dto.request.UpdateContactRequest;
@@ -11,6 +13,9 @@ import vn.amela.employeeservice.dto.response.EmployeeResponse;
 import vn.amela.employeeservice.dto.response.PageResponse;
 import vn.amela.employeeservice.entity.Department;
 import vn.amela.employeeservice.entity.Employee;
+import vn.amela.employeeservice.entity.EmployeeCreatedPayload;
+import vn.amela.employeeservice.entity.OutboxEvent;
+import vn.amela.employeeservice.entity.enums.EmployeeStatus;
 import vn.amela.employeeservice.exception.BusinessException;
 import vn.amela.employeeservice.exception.DuplicateResourceException;
 import vn.amela.employeeservice.exception.ResourceNotFoundException;
@@ -21,7 +26,11 @@ import vn.amela.employeeservice.service.EmployeeService;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -35,6 +44,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     protected final EmployeeMapper employeeMapper;
     protected final DepartmentMapper departmentMapper;
+    protected final LeaveServiceClient leaveServiceClient;
+    protected final OutboxEventMapper outboxEventMapper;
+    protected final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -68,7 +80,63 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public PageResponse<EmployeeResponse> search(EmployeeFilterRequest filter) {
-        return null;
+        EmployeeFilterRequest normalizedFilter = filter == null ? defaultFilter() : filter;
+        int page = normalizedFilter.page();
+        int size = normalizedFilter.size();
+
+        LocalDate startDateFrom = normalizedFilter.startDateFrom();
+        LocalDate startDateTo = normalizedFilter.startDateTo();
+        if (startDateFrom != null && startDateTo != null && startDateFrom.isAfter(startDateTo)) {
+            throw new BusinessException("Start date from cannot be after start date to");
+        }
+
+        String keyword = normalizeOptionalText(normalizedFilter.likeName());
+        String position = normalizeOptionalText(normalizedFilter.position());
+        String sortBy = normalizeSortBy(normalizedFilter.sortBy());
+        String sortDirection = normalizeSortDirection(normalizedFilter.sortDirection());
+        int offset = page * size;
+
+        List<Employee> employees = employeeMapper.search(
+                keyword,
+                normalizedFilter.departmentId(),
+                position,
+                normalizedFilter.status(),
+                startDateFrom,
+                startDateTo,
+                sortBy,
+                sortDirection,
+                offset,
+                size
+        );
+        int totalElements = employeeMapper.countByFilter(
+                keyword,
+                normalizedFilter.departmentId(),
+                position,
+                normalizedFilter.status(),
+                startDateFrom,
+                startDateTo
+        );
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+
+        Map<Long, String> departmentNames = new HashMap<>();
+        List<EmployeeResponse> items = employees.stream()
+                .map(employee -> toResponse(
+                        employee,
+                        departmentNames.computeIfAbsent(employee.getDepartmentId(), this::findDepartmentName)
+                ))
+                .toList();
+
+        return PageResponse.<EmployeeResponse>builder()
+                .items(items)
+                .page(page)
+                .size(size)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
+    }
+
+    private EmployeeFilterRequest defaultFilter() {
+        return new EmployeeFilterRequest(null, null, null, null, null, null, 0, 10, null, null);
     }
 
     @Override
@@ -159,11 +227,11 @@ public class EmployeeServiceImpl implements EmployeeService {
         if (currentEmployee == null) {
             throw new ResourceNotFoundException("Employee not found");
         }
-        
+
         if (!EmployeeStatus.ACTIVE.equals(currentEmployee.getStatus())) {
             throw new BusinessException("Employee is not active");
         }
-        
+
         if (leaveServiceClient.hasPendingLeavesByEmployeeId(id)) {
             throw new BusinessException("Cannot deactivate employee with pending leaves");
         }
@@ -174,7 +242,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
 
         currentEmployee.setStatus(EmployeeStatus.INACTIVE);
-        
+
         try {
             OutboxEvent event = OutboxEvent.builder()
                     .aggregateType("Employee")
@@ -234,27 +302,33 @@ public class EmployeeServiceImpl implements EmployeeService {
                 Instant.now()
         );
 
-        String payloadJson = objectMapper.writeValueAsString(payload);
+        try {
+            OutboxEvent event = OutboxEvent.builder()
+                    .aggregateType(EMPLOYEE_AGGREGATE_TYPE)
+                    .aggregateId(employee.getId())
+                    .eventType(EMPLOYEE_CREATED_EVENT)
+                    .payload(objectMapper.writeValueAsString(payload))
+                    .build();
 
-        OutboxEvent event = OutboxEvent.builder()
-                .aggregateType(EMPLOYEE_AGGREGATE_TYPE)
-                .aggregateId(employee.getId())
-                .eventType(EMPLOYEE_CREATED_EVENT)
-                .payload(payloadJson)
-                .build();
-
-        outboxEventMapper.insert(event);
+            outboxEventMapper.insert(event);
+        } catch (Exception e) {
+            throw new BusinessException("Failed to serialize outbox event payload");
+        }
     }
 
     private void saveEmployeeStatusChangedEvent(Employee employee) {
-        OutboxEvent event = OutboxEvent.builder()
-                .aggregateType(EMPLOYEE_UPDATE_AGGREGATE_TYPE)
-                .aggregateId(employee.getId())
-                .eventType(EMPLOYEE_STATUS_CHANGED_EVENT)
-                .payload(objectMapper.writeValueAsString(employee))
-                .build();
+        try {
+            OutboxEvent event = OutboxEvent.builder()
+                    .aggregateType(EMPLOYEE_UPDATE_AGGREGATE_TYPE)
+                    .aggregateId(employee.getId())
+                    .eventType(EMPLOYEE_STATUS_CHANGED_EVENT)
+                    .payload(objectMapper.writeValueAsString(employee))
+                    .build();
 
-        outboxEventMapper.insert(event);
+            outboxEventMapper.insert(event);
+        } catch (Exception e) {
+            throw new BusinessException("Failed to serialize outbox event payload");
+        }
     }
 
     private Employee buildEmployee(CreateEmployeeRequest request, String employeeCode, String email) {
@@ -281,6 +355,35 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new BusinessException(fieldName + " cannot be empty");
         }
         return value.trim();
+    }
+
+    protected String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    protected String normalizeSortBy(String sortBy) {
+        String normalizedSortBy = normalizeOptionalText(sortBy);
+        return normalizedSortBy == null ? "createdAt" : normalizedSortBy;
+    }
+
+    protected String normalizeSortDirection(String sortDirection) {
+        String normalizedSortDirection = normalizeOptionalText(sortDirection);
+        if (normalizedSortDirection == null) {
+            return "desc";
+        }
+        return "asc".equalsIgnoreCase(normalizedSortDirection) ? "asc" : "desc";
+    }
+
+    protected String findDepartmentName(Long departmentId) {
+        if (departmentId == null) {
+            return null;
+        }
+
+        Department department = departmentMapper.findById(departmentId);
+        return department == null ? null : department.getName();
     }
 
     protected Department requireActiveDepartment(Long departmentId) {

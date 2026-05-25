@@ -9,10 +9,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import vn.amela.employeeservice.client.LeaveServiceClient;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
+import vn.amela.employeeservice.dto.request.EmployeeFilterRequest;
 import vn.amela.employeeservice.dto.request.UpdateContactRequest;
 import vn.amela.employeeservice.dto.request.UpdateEmployeeRequest;
 import vn.amela.employeeservice.dto.response.EmployeeResponse;
+import vn.amela.employeeservice.dto.response.PageResponse;
 import vn.amela.employeeservice.entity.Department;
 import vn.amela.employeeservice.entity.Employee;
 import vn.amela.employeeservice.entity.OutboxEvent;
@@ -27,6 +30,7 @@ import vn.amela.employeeservice.mapper.OutboxEventMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -47,6 +51,9 @@ class EmployeeServiceImplTest {
     private DepartmentMapper departmentMapper;
 
     @Mock
+    private LeaveServiceClient leaveServiceClient;
+
+    @Mock
     private OutboxEventMapper outboxEventMapper;
 
     private EmployeeServiceImpl employeeService;
@@ -58,13 +65,14 @@ class EmployeeServiceImplTest {
         employeeService = new EmployeeServiceImpl(
                 employeeMapper,
                 departmentMapper,
+                leaveServiceClient,
                 outboxEventMapper,
                 objectMapper
         );
     }
 
     @Test
-    void createNormalizesInputPersistsEmployeeAndStoresOutboxEvent() {
+    void createNormalizesInputPersistsEmployeeAndStoresOutboxEvent() throws Exception {
         CreateEmployeeRequest request = validCreateRequest();
         Department department = activeDepartment(1L, "Engineering");
         Employee createdEmployee = createdEmployee();
@@ -133,14 +141,120 @@ class EmployeeServiceImplTest {
     }
 
     @Test
+    void searchDelegatesToMapperAndBuildsPageResponse() {
+        EmployeeFilterRequest filter = EmployeeFilterRequest.builder()
+                .likeName("  An  ")
+                .departmentId(1L)
+                .position(" Backend Developer ")
+                .status(EmployeeStatus.ACTIVE)
+                .startDateFrom(LocalDate.of(2024, 1, 1))
+                .startDateTo(LocalDate.of(2024, 12, 31))
+                .page(1)
+                .size(2)
+                .sortBy("employeeCode")
+                .sortDirection("ASC")
+                .build();
+        Employee employee = Employee.builder()
+                .id(10L)
+                .employeeCode("EMP010")
+                .fullName("Nguyen Van An")
+                .email("an@company.com")
+                .position("Backend Developer")
+                .departmentId(1L)
+                .authUserId(20L)
+                .status(EmployeeStatus.ACTIVE)
+                .startDate(LocalDate.of(2024, 1, 15))
+                .build();
+
+        when(employeeMapper.search(
+                "An",
+                1L,
+                "Backend Developer",
+                EmployeeStatus.ACTIVE,
+                LocalDate.of(2024, 1, 1),
+                LocalDate.of(2024, 12, 31),
+                "employeeCode",
+                "asc",
+                2,
+                2
+        )).thenReturn(List.of(employee));
+        when(employeeMapper.countByFilter(
+                "An",
+                1L,
+                "Backend Developer",
+                EmployeeStatus.ACTIVE,
+                LocalDate.of(2024, 1, 1),
+                LocalDate.of(2024, 12, 31)
+        )).thenReturn(5);
+        when(departmentMapper.findById(1L)).thenReturn(activeDepartment(1L, "Engineering"));
+
+        PageResponse<EmployeeResponse> response = employeeService.search(filter);
+
+        assertThat(response.page()).isEqualTo(1);
+        assertThat(response.size()).isEqualTo(2);
+        assertThat(response.totalElements()).isEqualTo(5);
+        assertThat(response.totalPages()).isEqualTo(3);
+        assertThat(response.items())
+                .extracting(EmployeeResponse::departmentName)
+                .containsExactly("Engineering");
+        verify(departmentMapper).findById(1L);
+    }
+
+    @Test
+    void searchNullFilterUsesSrsDefaults() {
+        when(employeeMapper.search(null, null, null, null, null, null, "createdAt", "desc", 0, 10))
+                .thenReturn(List.of());
+        when(employeeMapper.countByFilter(null, null, null, null, null, null)).thenReturn(0);
+
+        PageResponse<EmployeeResponse> response = employeeService.search(null);
+
+        assertThat(response.page()).isZero();
+        assertThat(response.size()).isEqualTo(10);
+        assertThat(response.totalElements()).isZero();
+        assertThat(response.totalPages()).isZero();
+        assertThat(response.items()).isEmpty();
+        verifyNoInteractions(departmentMapper);
+    }
+
+    @Test
+    void searchNegativePageUsesRecordDefault() {
+        EmployeeFilterRequest filter = EmployeeFilterRequest.builder()
+                .page(-1)
+                .size(0)
+                .build();
+        when(employeeMapper.search(null, null, null, null, null, null, "createdAt", "desc", 0, 10))
+                .thenReturn(List.of());
+        when(employeeMapper.countByFilter(null, null, null, null, null, null)).thenReturn(0);
+
+        PageResponse<EmployeeResponse> response = employeeService.search(filter);
+
+        assertThat(response.page()).isZero();
+        assertThat(response.size()).isEqualTo(10);
+    }
+
+    @Test
+    void searchInvalidDateRangeThrows() {
+        EmployeeFilterRequest filter = EmployeeFilterRequest.builder()
+                .startDateFrom(LocalDate.of(2024, 12, 31))
+                .startDateTo(LocalDate.of(2024, 1, 1))
+                .build();
+
+        assertThatThrownBy(() -> employeeService.search(filter))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Start date from cannot be after start date to");
+        verifyNoInteractions(employeeMapper);
+    }
+
+    @Test
     void updateByHrUpdatesEmployeeWithoutOutboxEventWhenDepartmentAndSalaryAreUnchanged() {
         Employee existingEmployee = existingEmployee();
         when(employeeMapper.findById(1L)).thenReturn(existingEmployee);
         when(departmentMapper.findById(2L)).thenReturn(activeDepartment(2L, "IT"));
 
-        UpdateEmployeeRequest request = updateEmployeeRequest(2L, new BigDecimal("1000.00"));
-
-        EmployeeResponse response = employeeService.updateByHr(1L, request);
+        EmployeeResponse response = employeeService.updateByHr(
+                1L,
+                updateEmployeeRequest(2L, new BigDecimal("1000.00"))
+        );
 
         ArgumentCaptor<Employee> employeeCaptor = ArgumentCaptor.forClass(Employee.class);
         verify(employeeMapper).updateByHr(employeeCaptor.capture());
@@ -155,7 +269,7 @@ class EmployeeServiceImplTest {
     }
 
     @Test
-    void updateByHrStoresOutboxEventWhenDepartmentOrSalaryChanges() {
+    void updateByHrStoresOutboxEventWhenDepartmentOrSalaryChanges() throws Exception {
         Employee existingEmployee = existingEmployee();
         when(employeeMapper.findById(1L)).thenReturn(existingEmployee);
         when(departmentMapper.findById(3L)).thenReturn(activeDepartment(3L, "HR"));
@@ -179,8 +293,7 @@ class EmployeeServiceImplTest {
 
     @Test
     void updateByHrRejectsDuplicateEmailFromDatabaseConstraint() {
-        Employee existingEmployee = existingEmployee();
-        when(employeeMapper.findById(1L)).thenReturn(existingEmployee);
+        when(employeeMapper.findById(1L)).thenReturn(existingEmployee());
         when(departmentMapper.findById(2L)).thenReturn(activeDepartment(2L, "IT"));
         when(employeeMapper.updateByHr(any(Employee.class)))
                 .thenThrow(new DuplicateKeyException("duplicate email"));
@@ -264,6 +377,65 @@ class EmployeeServiceImplTest {
         verifyNoInteractions(departmentMapper, outboxEventMapper);
     }
 
+    @Test
+    void deactivateUpdatesActiveEmployeeAndStoresOutboxEvent() {
+        Employee employee = activeEmployeeForDeactivate();
+        when(employeeMapper.findById(1L)).thenReturn(employee);
+        when(leaveServiceClient.hasPendingLeavesByEmployeeId(1L)).thenReturn(false);
+        when(employeeMapper.deactivate(1L)).thenReturn(1);
+
+        employeeService.deactivate(1L);
+
+        verify(employeeMapper).deactivate(1L);
+        ArgumentCaptor<OutboxEvent> eventCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventMapper).insert(eventCaptor.capture());
+        OutboxEvent event = eventCaptor.getValue();
+        assertThat(event.getAggregateType()).isEqualTo("Employee");
+        assertThat(event.getAggregateId()).isEqualTo(1L);
+        assertThat(event.getEventType()).isEqualTo("employee.deactivated");
+        assertThat(employee.getStatus()).isEqualTo(EmployeeStatus.INACTIVE);
+    }
+
+    @Test
+    void deactivateRejectsEmployeeThatIsNotActive() {
+        Employee employee = activeEmployeeForDeactivate();
+        employee.setStatus(EmployeeStatus.INACTIVE);
+        when(employeeMapper.findById(1L)).thenReturn(employee);
+
+        assertThatThrownBy(() -> employeeService.deactivate(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Employee is not active");
+
+        verify(employeeMapper, never()).deactivate(1L);
+        verifyNoInteractions(outboxEventMapper);
+    }
+
+    @Test
+    void deactivateRejectsEmployeeWithPendingLeaves() {
+        when(employeeMapper.findById(1L)).thenReturn(activeEmployeeForDeactivate());
+        when(leaveServiceClient.hasPendingLeavesByEmployeeId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> employeeService.deactivate(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Cannot deactivate employee with pending leaves");
+
+        verify(employeeMapper, never()).deactivate(1L);
+        verifyNoInteractions(outboxEventMapper);
+    }
+
+    @Test
+    void deactivateRejectsWhenNoRowIsUpdated() {
+        when(employeeMapper.findById(1L)).thenReturn(activeEmployeeForDeactivate());
+        when(leaveServiceClient.hasPendingLeavesByEmployeeId(1L)).thenReturn(false);
+        when(employeeMapper.deactivate(1L)).thenReturn(0);
+
+        assertThatThrownBy(() -> employeeService.deactivate(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Employee could not be deactivated");
+
+        verify(outboxEventMapper, never()).insert(any(OutboxEvent.class));
+    }
+
     private CreateEmployeeRequest validCreateRequest() {
         return new CreateEmployeeRequest(
                 " emp010 ",
@@ -333,105 +505,11 @@ class EmployeeServiceImplTest {
                 .updatedAt(LocalDateTime.of(2026, 5, 18, 9, 0))
                 .build();
     }
-}
-package vn.amela.employeeservice.service.impl;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import vn.amela.employeeservice.client.LeaveServiceClient;
-import vn.amela.employeeservice.entity.Employee;
-import vn.amela.employeeservice.entity.OutboxEvent;
-import vn.amela.employeeservice.entity.enums.EmployeeStatus;
-import vn.amela.employeeservice.exception.BusinessException;
-import vn.amela.employeeservice.mapper.EmployeeMapper;
-import vn.amela.employeeservice.mapper.OutboxEventMapper;
-import tools.jackson.databind.ObjectMapper;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
-@ExtendWith(MockitoExtension.class)
-class EmployeeServiceImplTest {
-
-    @Mock
-    private EmployeeMapper employeeMapper;
-
-    @Mock
-    private LeaveServiceClient leaveServiceClient;
-
-    @Mock
-    private OutboxEventMapper outboxEventMapper;
-
-    @Mock
-    private ObjectMapper objectMapper;
-
-    @InjectMocks
-    private EmployeeServiceImpl employeeService;
-
-    @Test
-    void testDeactivate_Success() {
-        Employee currentEmployee = new Employee();
-        currentEmployee.setId(1L);
-        currentEmployee.setStatus(EmployeeStatus.ACTIVE);
-
-        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
-        when(leaveServiceClient.hasPendingLeavesByEmployeeId(1L)).thenReturn(false);
-        when(employeeMapper.deactivate(1L)).thenReturn(1);
-        when(objectMapper.writeValueAsString(currentEmployee)).thenReturn("{}");
-
-        employeeService.deactivate(1L);
-
-        verify(employeeMapper).deactivate(1L);
-        
-        ArgumentCaptor<OutboxEvent> eventCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
-        verify(outboxEventMapper).insert(eventCaptor.capture());
-        OutboxEvent event = eventCaptor.getValue();
-        assertEquals("Employee", event.getAggregateType());
-        assertEquals("employee.deactivated", event.getEventType());
-        assertEquals(1L, event.getAggregateId());
-    }
-
-    @Test
-    void testDeactivate_EmployeeNotActive() {
-        Employee currentEmployee = new Employee();
-        currentEmployee.setId(1L);
-        currentEmployee.setStatus(EmployeeStatus.INACTIVE);
-        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
-
-        assertThrows(BusinessException.class, () -> employeeService.deactivate(1L));
-        verify(employeeMapper, never()).deactivate(1L);
-    }
-
-    @Test
-    void testDeactivate_HasPendingLeaves() {
-        Employee currentEmployee = new Employee();
-        currentEmployee.setId(1L);
-        currentEmployee.setStatus(EmployeeStatus.ACTIVE);
-        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
-        
-        when(leaveServiceClient.hasPendingLeavesByEmployeeId(1L)).thenReturn(true);
-
-        assertThrows(BusinessException.class, () -> employeeService.deactivate(1L));
-        verify(employeeMapper, never()).deactivate(1L);
-    }
-
-    @Test
-    void testDeactivate_UpdateCountZero_Throws() {
-        Employee currentEmployee = new Employee();
-        currentEmployee.setId(1L);
-        currentEmployee.setStatus(EmployeeStatus.ACTIVE);
-
-        when(employeeMapper.findById(1L)).thenReturn(currentEmployee);
-        when(leaveServiceClient.hasPendingLeavesByEmployeeId(1L)).thenReturn(false);
-        when(employeeMapper.deactivate(1L)).thenReturn(0);
-
-        assertThrows(BusinessException.class, () -> employeeService.deactivate(1L));
-
-        verify(outboxEventMapper, never()).insert(any());
+    private Employee activeEmployeeForDeactivate() {
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setStatus(EmployeeStatus.ACTIVE);
+        return employee;
     }
 }
