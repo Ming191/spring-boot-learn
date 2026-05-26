@@ -42,6 +42,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     private static final String LOGIN_PATH = "/login";
     private static final String REGISTER_PATH = "/register";
     private static final String EMPLOYEES_PATH = "/employees";
+    private static final String MY_LEAVE_PATH = "/leaves/my";
     private static final String AUTHENTICATION_REQUIRED = "Authentication is required";
     private static final String INVALID_TOKEN = "Invalid token";
     private static final String ACCESS_DENIED = "Access denied";
@@ -59,8 +60,18 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         ServerWebExchange sanitizedExchange = stripInternalHeaders(exchange);
         ServerHttpRequest sanitizedRequest = sanitizedExchange.getRequest();
 
-        if (isAuthPage(sanitizedRequest) && hasValidToken(sanitizedRequest)) {
-            return redirect(sanitizedExchange, EMPLOYEES_PATH);
+        if (isAuthPage(sanitizedRequest)) {
+            String token = resolveToken(sanitizedRequest);
+            if (token != null && !token.isBlank()) {
+                try {
+                    Claims claims = jwtService.extractClaims(token);
+                    String role = claims.get("role", String.class);
+                    String destination = "HR".equals(role) ? EMPLOYEES_PATH : MY_LEAVE_PATH;
+                    return redirect(sanitizedExchange, destination);
+                } catch (JwtException | IllegalArgumentException ignored) {
+                    // Invalid token - let normal flow proceed to public page
+                }
+            }
         }
 
         if (authorizationService.isPublicPath(sanitizedRequest)) {

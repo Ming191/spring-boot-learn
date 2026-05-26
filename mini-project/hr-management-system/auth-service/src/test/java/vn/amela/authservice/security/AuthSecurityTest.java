@@ -25,6 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest({
@@ -131,9 +132,10 @@ class AuthSecurityTest {
     }
 
     @Test
-    @DisplayName("logout endpoint is not public at auth service")
-    void logoutWithoutTokenReturnsUnauthorized() throws Exception {
+    @DisplayName("logout endpoint is public at auth service for tokenless clients")
+    void logoutWithoutTokenReturnsRedirect() throws Exception {
         mockMvc.perform(post("/logout"))
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/login?logout"));
     }
 }

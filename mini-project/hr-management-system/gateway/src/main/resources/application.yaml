@@ -55,7 +55,7 @@ spring:
               filters:
                 - name: RequestRateLimiter
                   args:
-                    key-resolver: "#{@userKeyResolver}"
+                    key-resolver: "#{@ipKeyResolver}"
                     redis-rate-limiter.replenishRate: 10
                     redis-rate-limiter.burstCapacity: 20
                     redis-rate-limiter.requestedTokens: 1
@@ -240,6 +240,7 @@ gateway:
     - /api/auth/refresh
     - /login
     - /register
+    - /logout
     - /auth-assets/**
     - /assets/**
     - /css/**
@@ -251,9 +252,6 @@ gateway:
   authorization-rules:
     - path: /api/auth/admin/**
       roles: [HR]
-    - path: /logout
-      methods: [POST]
-      roles: [HR, EMPLOYEE]
     - path: /employees/*/contact
       methods: [GET, POST]
       roles: [EMPLOYEE]

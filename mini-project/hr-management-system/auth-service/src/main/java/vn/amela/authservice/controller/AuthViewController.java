@@ -145,7 +145,7 @@ public class AuthViewController {
         addCookie(response, REFRESH_TOKEN_COOKIE, "", Duration.ZERO);
     }
 
-    @Value("${app.jwt.cookie-secure:false}")
+    @Value("${app.jwt.cookie-secure:true}")
     private boolean cookieSecure;
 
     private void addCookie(HttpServletResponse response, String name, String value, Duration maxAge) {

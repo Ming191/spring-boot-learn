@@ -20,6 +20,7 @@ import tools.jackson.databind.ObjectMapper;
 import vn.amela.gateway.security.authorization.GatewayAuthorizationProperties;
 import vn.amela.gateway.security.authorization.GatewayAuthorizationService;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Date;
@@ -162,20 +163,24 @@ class AuthenticationFilterTest {
     }
 
     @Test
-    @DisplayName("logout without token is rejected because logout is authenticated")
-    void logoutWithoutTokenIsRejected() throws Exception {
+    @DisplayName("logout without token passes through so auth service can clear cookies")
+    void logoutWithoutTokenPassesThrough() {
         MockServerWebExchange exchange = MockServerWebExchange.from(
             MockServerHttpRequest.post("/logout")
+                .header("X-User-Id", "1")
+                .header("X-Username", "attacker")
+                .header("X-Role", "HR")
         );
         CapturingChain chain = new CapturingChain();
 
         filter.filter(exchange, chain).block();
 
-        assertThat(chain.exchange()).isNull();
-        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-
-        JsonNode body = objectMapper.readTree(exchange.getResponse().getBodyAsString().block());
-        assertThat(body.get("message").asText()).isEqualTo("Authentication is required");
+        assertThat(chain.exchange()).isNotNull();
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
+        HttpHeaders headers = chain.exchange().getRequest().getHeaders();
+        assertThat(headers.getFirst("X-User-Id")).isNull();
+        assertThat(headers.getFirst("X-Username")).isNull();
+        assertThat(headers.getFirst("X-Role")).isNull();
     }
 
     @Test
@@ -242,6 +247,70 @@ class AuthenticationFilterTest {
 
         assertThat(chain.exchange()).isNotNull();
         assertThat(exchange.getResponse().getStatusCode()).isNull();
+    }
+
+    @Test
+    @DisplayName("authenticated HR visiting /login redirects to /employees")
+    void authenticatedHrVisitingLoginPageIsRedirected() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/login")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "HR"))
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNull();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+        assertThat(exchange.getResponse().getHeaders().getLocation()).isEqualTo(URI.create("/employees"));
+    }
+
+    @Test
+    @DisplayName("authenticated EMPLOYEE visiting /login redirects to /leaves/my")
+    void authenticatedEmployeeVisitingLoginPageIsRedirected() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/login")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "EMPLOYEE"))
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNull();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+        assertThat(exchange.getResponse().getHeaders().getLocation()).isEqualTo(URI.create("/leaves/my"));
+    }
+
+    @Test
+    @DisplayName("authenticated HR visiting /register redirects to /employees")
+    void authenticatedHrVisitingRegisterPageIsRedirected() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/register")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "HR"))
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNull();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+        assertThat(exchange.getResponse().getHeaders().getLocation()).isEqualTo(URI.create("/employees"));
+    }
+
+    @Test
+    @DisplayName("authenticated EMPLOYEE visiting /register redirects to /leaves/my")
+    void authenticatedEmployeeVisitingRegisterPageIsRedirected() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/register")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "EMPLOYEE"))
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNull();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.SEE_OTHER);
+        assertThat(exchange.getResponse().getHeaders().getLocation()).isEqualTo(URI.create("/leaves/my"));
     }
 
     @Test
@@ -331,6 +400,7 @@ class AuthenticationFilterTest {
             "/api/auth/refresh",
             "/login",
             "/register",
+            "/logout",
             "/auth-assets/**",
             "/actuator/health",
             "/actuator/info"
@@ -350,11 +420,6 @@ class AuthenticationFilterTest {
             "/api/departments/**",
             List.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE),
             List.of("HR")
-        );
-        GatewayAuthorizationProperties.AuthorizationRuleProperties logoutRule = authorizationRule(
-            "/logout",
-            List.of(HttpMethod.POST),
-            List.of("HR", "EMPLOYEE")
         );
         GatewayAuthorizationProperties.AuthorizationRuleProperties employeesUiRule = authorizationRule(
             "/employees",
@@ -384,7 +449,6 @@ class AuthenticationFilterTest {
 
         properties.setAuthorizationRules(List.of(
             authAdminRule,
-            logoutRule,
             employeesUiRule,
             leavesMyUiRule,
             leavesNewUiRule,
