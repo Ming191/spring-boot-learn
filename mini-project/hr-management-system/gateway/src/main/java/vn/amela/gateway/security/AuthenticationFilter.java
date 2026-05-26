@@ -32,12 +32,12 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
 
     private static final String USER_ID_HEADER = "X-User-Id";
     private static final String USERNAME_HEADER = "X-Username";
-    private static final String USER_ROLE_HEADER = "X-User-Role";
+    private static final String ROLE_HEADER = "X-Role";
     private static final String ACCESS_TOKEN_COOKIE = "HR_ACCESS_TOKEN";
     private static final List<String> INTERNAL_HEADERS = List.of(
         USER_ID_HEADER,
         USERNAME_HEADER,
-        USER_ROLE_HEADER
+        ROLE_HEADER
     );
     private static final String LOGIN_PATH = "/login";
     private static final String REGISTER_PATH = "/register";
@@ -99,7 +99,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             ServerHttpRequest request = sanitizedRequest.mutate()
                 .header(USER_ID_HEADER, userId)
                 .header(USERNAME_HEADER, username)
-                .header(USER_ROLE_HEADER, role)
+                .header(ROLE_HEADER, role)
                 .build();
 
             return chain.filter(sanitizedExchange.mutate().request(request).build());

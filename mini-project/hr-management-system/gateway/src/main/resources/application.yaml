@@ -68,11 +68,53 @@ spring:
                       - 502
                       - 503
                       - 504
-            - id: auth-service-views
+            - id: auth-public-views
               order: 20
               uri: lb://AUTH-SERVICE
               predicates:
-                - Path=/login,/register,/logout,/auth-assets/**
+                - Path=/login,/register
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@ipKeyResolver}"
+                    redis-rate-limiter.replenishRate: 2
+                    redis-rate-limiter.burstCapacity: 5
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: auth-service-circuit-breaker
+                    fallbackUri: forward:/fallback/auth-service
+                    statusCodes:
+                      - 500
+                      - 502
+                      - 503
+                      - 504
+            - id: auth-service-logout
+              order: 21
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/logout
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userKeyResolver}"
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: auth-service-circuit-breaker
+                    fallbackUri: forward:/fallback/auth-service
+                    statusCodes:
+                      - 500
+                      - 502
+                      - 503
+                      - 504
+            - id: auth-service-assets
+              order: 22
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/auth-assets/**
             - id: employee-service
               uri: lb://EMPLOYEE-SERVICE
               predicates:
@@ -138,6 +180,11 @@ spring:
               uri: lb://EMPLOYEE-SERVICE
               predicates:
                 - Path=/employees,/employees/**,/departments,/departments/**,/css/**
+            - id: leave-service-views
+              order: 90
+              uri: lb://LEAVE-SERVICE
+              predicates:
+                - Path=/leaves,/leaves/**
 eureka:
   client:
     service-url:
@@ -161,7 +208,6 @@ gateway:
     - /api/auth/refresh
     - /login
     - /register
-    - /logout
     - /auth-assets/**
     - /assets/**
     - /css/**
@@ -173,12 +219,78 @@ gateway:
   authorization-rules:
     - path: /api/auth/admin/**
       roles: [HR]
+    - path: /logout
+      methods: [POST]
+      roles: [HR, EMPLOYEE]
+    - path: /employees/*/contact
+      methods: [GET, POST]
+      roles: [EMPLOYEE]
+    - path: /employees
+      methods: [GET]
+      roles: [HR]
+    - path: /employees/**
+      methods: [GET, POST]
+      roles: [HR]
+    - path: /departments
+      methods: [GET]
+      roles: [HR]
+    - path: /departments/**
+      methods: [GET, POST]
+      roles: [HR]
+    - path: /leaves/*/approve
+      methods: [POST]
+      roles: [HR]
+    - path: /leaves/*/reject
+      methods: [POST]
+      roles: [HR]
+    - path: /leaves/*/cancel
+      methods: [POST]
+      roles: [EMPLOYEE]
+    - path: /leaves
+      methods: [GET, POST]
+      roles: [HR, EMPLOYEE]
+    - path: /leaves/**
+      methods: [GET, POST]
+      roles: [HR, EMPLOYEE]
+    - path: /api/employees/*/contact
+      methods: [PATCH]
+      roles: [EMPLOYEE]
+    - path: /api/employees/*/deactivate
+      methods: [PATCH]
+      roles: [HR]
     - path: /api/employees/**
-      methods: [POST, PUT, DELETE]
+      methods: [POST, PUT, PATCH, DELETE]
+      roles: [HR]
+    - path: /api/employees
+      methods: [GET]
       roles: [HR]
     - path: /api/departments/**
       methods: [POST, PUT, DELETE]
       roles: [HR]
+    - path: /api/departments
+      methods: [GET]
+      roles: [HR]
+    - path: /api/leaves/*/approve
+      methods: [POST]
+      roles: [HR]
+    - path: /api/leaves/*/reject
+      methods: [POST]
+      roles: [HR]
+    - path: /api/leaves/*/cancel
+      methods: [POST]
+      roles: [EMPLOYEE]
+    - path: /api/leaves/my
+      methods: [GET]
+      roles: [EMPLOYEE]
+    - path: /api/leaves
+      methods: [GET]
+      roles: [HR]
+    - path: /api/leaves
+      methods: [POST]
+      roles: [HR, EMPLOYEE]
+    - path: /api/leaves/**
+      methods: [GET]
+      roles: [HR, EMPLOYEE]
 
 resilience4j:
   circuitbreaker:
@@ -210,15 +322,6 @@ resilience4j:
         failureRateThreshold: 50
         eventConsumerBufferSize: 10
         registerHealthIndicator: true
-      web-service-circuit-breaker:
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        slidingWindowType: COUNT_BASED
-        permittedNumberOfCallsInHalfOpenState: 3
-        waitDurationInOpenState: 10s
-        failureRateThreshold: 50
-        eventConsumerBufferSize: 10
-        registerHealthIndicator: true
   timelimiter:
     instances:
       auth-service-circuit-breaker:
@@ -228,8 +331,5 @@ resilience4j:
         timeoutDuration: 5s
         cancelRunningFuture: true
       leave-service-circuit-breaker:
-        timeoutDuration: 5s
-        cancelRunningFuture: true
-      web-service-circuit-breaker:
         timeoutDuration: 5s
         cancelRunningFuture: true

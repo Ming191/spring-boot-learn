@@ -76,7 +76,7 @@ class AuthenticationFilterTest {
             MockServerHttpRequest.post("/api/auth/login")
                 .header("X-User-Id", "1")
                 .header("X-Username", "attacker")
-                .header("X-User-Role", "HR")
+                .header("X-Role", "HR")
         );
         CapturingChain chain = new CapturingChain();
 
@@ -85,7 +85,7 @@ class AuthenticationFilterTest {
         HttpHeaders headers = chain.exchange().getRequest().getHeaders();
         assertThat(headers.getFirst("X-User-Id")).isNull();
         assertThat(headers.getFirst("X-Username")).isNull();
-        assertThat(headers.getFirst("X-User-Role")).isNull();
+        assertThat(headers.getFirst("X-Role")).isNull();
     }
 
     @Test
@@ -110,7 +110,7 @@ class AuthenticationFilterTest {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE))
                 .header("X-User-Id", "999")
                 .header("X-Username", "forged")
-                .header("X-User-Role", "HR")
+                .header("X-Role", "HR")
         );
         CapturingChain chain = new CapturingChain();
 
@@ -119,7 +119,7 @@ class AuthenticationFilterTest {
         HttpHeaders headers = chain.exchange().getRequest().getHeaders();
         assertThat(headers.getFirst("X-User-Id")).isEqualTo("1");
         assertThat(headers.getFirst("X-Username")).isEqualTo("emp");
-        assertThat(headers.getFirst("X-User-Role")).isEqualTo("EMPLOYEE");
+        assertThat(headers.getFirst("X-Role")).isEqualTo("EMPLOYEE");
     }
 
     @Test
@@ -158,7 +158,57 @@ class AuthenticationFilterTest {
         assertThat(exchange.getResponse().getStatusCode()).isNull();
 
         HttpHeaders headers = chain.exchange().getRequest().getHeaders();
-        assertThat(headers.getFirst("X-User-Role")).isEqualTo("HR");
+        assertThat(headers.getFirst("X-Role")).isEqualTo("HR");
+    }
+
+    @Test
+    @DisplayName("logout without token is rejected because logout is authenticated")
+    void logoutWithoutTokenIsRejected() throws Exception {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.post("/logout")
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNull();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        JsonNode body = objectMapper.readTree(exchange.getResponse().getBodyAsString().block());
+        assertThat(body.get("message").asText()).isEqualTo("Authentication is required");
+    }
+
+    @Test
+    @DisplayName("employee role cannot access HR-only employee UI")
+    void employeeRoleCannotAccessHrOnlyEmployeeUi() throws Exception {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/employees")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "EMPLOYEE"))
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNull();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        JsonNode body = objectMapper.readTree(exchange.getResponse().getBodyAsString().block());
+        assertThat(body.get("path").asText()).isEqualTo("/employees");
+    }
+
+    @Test
+    @DisplayName("employee role can access own leave UI")
+    void employeeRoleCanAccessOwnLeaveUi() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/leaves/my")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "EMPLOYEE"))
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNotNull();
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
     }
 
     @Test
@@ -224,6 +274,9 @@ class AuthenticationFilterTest {
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/refresh",
+            "/login",
+            "/register",
+            "/auth-assets/**",
             "/actuator/health",
             "/actuator/info"
         ));
@@ -235,7 +288,7 @@ class AuthenticationFilterTest {
         );
         GatewayAuthorizationProperties.AuthorizationRuleProperties employeeMutationRule = authorizationRule(
             "/api/employees/**",
-            List.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE),
+            List.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE),
             List.of("HR")
         );
         GatewayAuthorizationProperties.AuthorizationRuleProperties departmentMutationRule = authorizationRule(
@@ -243,9 +296,27 @@ class AuthenticationFilterTest {
             List.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE),
             List.of("HR")
         );
+        GatewayAuthorizationProperties.AuthorizationRuleProperties logoutRule = authorizationRule(
+            "/logout",
+            List.of(HttpMethod.POST),
+            List.of("HR", "EMPLOYEE")
+        );
+        GatewayAuthorizationProperties.AuthorizationRuleProperties employeesUiRule = authorizationRule(
+            "/employees",
+            List.of(HttpMethod.GET),
+            List.of("HR")
+        );
+        GatewayAuthorizationProperties.AuthorizationRuleProperties leavesUiRule = authorizationRule(
+            "/leaves/**",
+            List.of(HttpMethod.GET, HttpMethod.POST),
+            List.of("HR", "EMPLOYEE")
+        );
 
         properties.setAuthorizationRules(List.of(
             authAdminRule,
+            logoutRule,
+            employeesUiRule,
+            leavesUiRule,
             employeeMutationRule,
             departmentMutationRule
         ));
