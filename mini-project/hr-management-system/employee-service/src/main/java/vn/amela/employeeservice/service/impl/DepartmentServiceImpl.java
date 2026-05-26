@@ -53,6 +53,16 @@ public class DepartmentServiceImpl implements DepartmentService {
     }
 
     @Override
+    public DepartmentResponse getById(Long id) {
+        Department department = departmentMapper.findById(id);
+        if (department == null) {
+            throw new ResourceNotFoundException("Department not found");
+        }
+
+        return toResponse(department);
+    }
+
+    @Override
     public List<DepartmentResponse> listAll() {
 
         return departmentMapper.findAll().stream()

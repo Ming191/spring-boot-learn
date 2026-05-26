@@ -45,10 +45,13 @@
                     </td>
                     <td th:text="${department.createdAt ?: '-'}">2026-01-01T09:00</td>
                     <td>
-                        <form method="post" th:action="@{/departments/{id}/delete(id=${department.id})}"
-                              th:if="${department.isActive}">
-                            <button class="button danger" type="submit">Deactivate</button>
-                        </form>
+                        <div class="actions">
+                            <a class="button secondary" th:href="@{/departments/{id}/edit(id=${department.id})}">Edit</a>
+                            <form method="post" th:action="@{/departments/{id}/delete(id=${department.id})}"
+                                  th:if="${department.isActive}">
+                                <button class="button danger" type="submit">Deactivate</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 </tbody>

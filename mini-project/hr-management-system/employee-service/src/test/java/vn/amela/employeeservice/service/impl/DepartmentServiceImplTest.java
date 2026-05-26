@@ -69,6 +69,32 @@ class DepartmentServiceImplTest {
     }
 
     @Test
+    void getById_success() {
+        Department department = Department.builder()
+                .id(1L)
+                .name("Engineering")
+                .description("Product team")
+                .managerId(10L)
+                .isActive(true)
+                .build();
+        when(departmentMapper.findById(1L)).thenReturn(department);
+
+        DepartmentResponse response = departmentService.getById(1L);
+
+        assertThat(response.id()).isEqualTo(1L);
+        assertThat(response.name()).isEqualTo("Engineering");
+        assertThat(response.managerId()).isEqualTo(10L);
+        assertThat(response.isActive()).isTrue();
+    }
+
+    @Test
+    void getById_notFound_throws() {
+        when(departmentMapper.findById(1L)).thenReturn(null);
+
+        assertThrows(ResourceNotFoundException.class, () -> departmentService.getById(1L));
+    }
+
+    @Test
     void updateDepartment_success() {
         Department department = Department.builder()
                 .id(1L)

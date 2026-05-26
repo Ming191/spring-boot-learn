@@ -8,6 +8,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
 import vn.amela.employeeservice.dto.request.EmployeeFilterRequest;
+import vn.amela.employeeservice.dto.request.UpdateContactRequest;
 import vn.amela.employeeservice.dto.request.UpdateEmployeeRequest;
 import vn.amela.employeeservice.dto.response.EmployeeResponse;
 import vn.amela.employeeservice.dto.response.PageResponse;
@@ -100,6 +101,39 @@ public class EmployeeViewController {
 
         employeeService.updateByHr(id, request);
         return "redirect:/employees";
+    }
+
+    @GetMapping("/{id}/contact")
+    public String contactForm(
+            @PathVariable Long id,
+            @RequestHeader(USER_ID_HEADER) Long userId,
+            @RequestHeader(ROLE_HEADER) String userRole,
+            Model model
+    ) {
+        EmployeeResponse employee = employeeService.getById(id, userId, userRole);
+
+        model.addAttribute("id", id);
+        model.addAttribute("employeeName", employee.fullName());
+        model.addAttribute("contact", new UpdateContactRequest(employee.email(), employee.phone()));
+
+        return "employees/contact";
+    }
+
+    @PostMapping("/{id}/contact")
+    public String updateContact(
+            @PathVariable Long id,
+            @RequestHeader(USER_ID_HEADER) Long userId,
+            @Valid @ModelAttribute("contact") UpdateContactRequest request,
+            BindingResult bindingResult,
+            Model model
+    ) {
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("id", id);
+            return "employees/contact";
+        }
+
+        employeeService.updateContact(id, request, userId);
+        return "redirect:/employees/" + id + "/contact";
     }
 
     @PostMapping("/{id}/deactivate")
