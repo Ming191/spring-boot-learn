@@ -38,6 +38,9 @@ public class AuthViewController {
     private final AuthService authService;
     private final JwtService jwtService;
 
+    @Value("${app.jwt.cookie-secure:true}")
+    private boolean cookieSecure;
+
     @Value("${app.jwt.refresh-expiration-days:7}")
     private long refreshExpirationDays;
 
@@ -144,9 +147,6 @@ public class AuthViewController {
         addCookie(response, ACCESS_TOKEN_COOKIE, "", Duration.ZERO);
         addCookie(response, REFRESH_TOKEN_COOKIE, "", Duration.ZERO);
     }
-
-    @Value("${app.jwt.cookie-secure:true}")
-    private boolean cookieSecure;
 
     private void addCookie(HttpServletResponse response, String name, String value, Duration maxAge) {
         ResponseCookie cookie = ResponseCookie.from(name, value)

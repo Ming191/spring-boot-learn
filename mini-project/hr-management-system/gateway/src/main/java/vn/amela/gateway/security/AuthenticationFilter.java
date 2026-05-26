@@ -159,19 +159,6 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         return LOGIN_PATH.equals(path) || REGISTER_PATH.equals(path);
     }
 
-    private boolean hasValidToken(ServerHttpRequest request) {
-        String token = resolveToken(request);
-        if (token == null || token.isBlank()) {
-            return false;
-        }
-        try {
-            jwtService.extractClaims(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
-    }
-
     private Mono<Void> redirect(ServerWebExchange exchange, String location) {
         var response = exchange.getResponse();
         response.setStatusCode(HttpStatus.SEE_OTHER);
