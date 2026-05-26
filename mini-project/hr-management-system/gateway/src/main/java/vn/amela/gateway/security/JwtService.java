@@ -1,7 +1,9 @@
 package vn.amela.gateway.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.UnsupportedJwtException;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import java.nio.charset.StandardCharsets;
 
 @Service
 public class JwtService {
+
+    private static final String JWT_ALGORITHM = "HS256";
 
     private SecretKey signingKey;
 
@@ -32,13 +36,18 @@ public class JwtService {
 
     public Claims extractClaims(String token) {
 
-        return Jwts.parser()
+        Jws<Claims> claimsJws = Jwts.parser()
             .verifyWith(getKey())
             .requireIssuer(issuer)
             .requireAudience(audience)
             .build()
-            .parseSignedClaims(token)
-            .getPayload();
+            .parseSignedClaims(token);
+
+        if (!JWT_ALGORITHM.equals(claimsJws.getHeader().getAlgorithm())) {
+            throw new UnsupportedJwtException("Unsupported JWT algorithm");
+        }
+
+        return claimsJws.getPayload();
     }
 
     private SecretKey getKey() {
