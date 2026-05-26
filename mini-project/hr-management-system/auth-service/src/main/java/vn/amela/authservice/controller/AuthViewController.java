@@ -135,10 +135,13 @@ public class AuthViewController {
         addCookie(response, REFRESH_TOKEN_COOKIE, "", Duration.ZERO);
     }
 
+    @Value("${app.jwt.cookie-secure:false}")
+    private boolean cookieSecure;
+
     private void addCookie(HttpServletResponse response, String name, String value, Duration maxAge) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
             .httpOnly(true)
-            .secure(false)
+            .secure(cookieSecure)
             .sameSite("Lax")
             .path(COOKIE_PATH)
             .maxAge(maxAge)
