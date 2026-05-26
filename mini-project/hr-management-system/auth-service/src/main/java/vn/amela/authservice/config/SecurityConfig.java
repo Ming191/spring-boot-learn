@@ -36,7 +36,6 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/login",
                     "/register",
-                    "/logout",
                     "/auth-assets/**",
                     "/api/auth/register",
                     "/api/auth/login",
@@ -53,6 +52,7 @@ public class SecurityConfig {
             )
             .httpBasic(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
+            .logout(AbstractHttpConfigurer::disable)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(authenticationEntryPoint)
                 .accessDeniedHandler(accessDeniedHandler)

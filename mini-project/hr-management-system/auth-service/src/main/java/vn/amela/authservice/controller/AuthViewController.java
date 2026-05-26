@@ -19,7 +19,9 @@ import vn.amela.authservice.dto.request.LoginRequest;
 import vn.amela.authservice.dto.request.RefreshRequest;
 import vn.amela.authservice.dto.request.RegisterRequest;
 import vn.amela.authservice.dto.response.TokenResponse;
+import vn.amela.authservice.entity.enums.Role;
 import vn.amela.authservice.exception.AuthException;
+import vn.amela.authservice.security.JwtService;
 import vn.amela.authservice.service.AuthService;
 
 import java.net.URI;
@@ -34,6 +36,7 @@ public class AuthViewController {
     private static final String COOKIE_PATH = "/";
 
     private final AuthService authService;
+    private final JwtService jwtService;
 
     @Value("${app.jwt.refresh-expiration-days:7}")
     private long refreshExpirationDays;
@@ -60,7 +63,7 @@ public class AuthViewController {
         try {
             TokenResponse tokenResponse = authService.login(request);
             addAuthCookies(response, tokenResponse);
-            return redirectTo("/employees");
+            return redirectTo(redirectPathFor(jwtService.extractRole(tokenResponse.getAccessToken())));
         } catch (AuthException exception) {
             model.addAttribute("formError", exception.getMessage());
             return "auth/login";
@@ -113,6 +116,13 @@ public class AuthViewController {
         return ResponseEntity.status(HttpStatus.SEE_OTHER)
             .location(URI.create(location))
             .build();
+    }
+
+    private String redirectPathFor(Role role) {
+        if (role == Role.EMPLOYEE) {
+            return "/leaves/my";
+        }
+        return "/employees";
     }
 
     private void addAuthCookies(HttpServletResponse response, TokenResponse tokenResponse) {
