@@ -212,6 +212,57 @@ class AuthenticationFilterTest {
     }
 
     @Test
+    @DisplayName("employee role cannot access all leave UI")
+    void employeeRoleCannotAccessAllLeaveUi() throws Exception {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/leaves")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "EMPLOYEE"))
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNull();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        JsonNode body = objectMapper.readTree(exchange.getResponse().getBodyAsString().block());
+        assertThat(body.get("path").asText()).isEqualTo("/leaves");
+    }
+
+    @Test
+    @DisplayName("HR role can access all leave UI")
+    void hrRoleCanAccessAllLeaveUi() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/leaves")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "HR"))
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNotNull();
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
+    }
+
+    @Test
+    @DisplayName("protected path with unsupported JWT algorithm returns JSON 401")
+    void protectedPathWithUnsupportedJwtAlgorithmReturns401() throws Exception {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/api/employees")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "EMPLOYEE", Jwts.SIG.HS384))
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNull();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        JsonNode body = objectMapper.readTree(exchange.getResponse().getBodyAsString().block());
+        assertThat(body.get("message").asText()).isEqualTo("Invalid token");
+    }
+
+    @Test
     @DisplayName("employee role cannot access auth admin path")
     void employeeRoleCannotAccessAuthAdminPath() throws Exception {
         MockServerWebExchange exchange = MockServerWebExchange.from(
@@ -252,6 +303,10 @@ class AuthenticationFilterTest {
     }
 
     private static String accessToken(String audience, String role) {
+        return accessToken(audience, role, Jwts.SIG.HS256);
+    }
+
+    private static String accessToken(String audience, String role, io.jsonwebtoken.security.MacAlgorithm algorithm) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + 900_000L);
 
@@ -264,7 +319,7 @@ class AuthenticationFilterTest {
             .issuedAt(now)
             .notBefore(now)
             .expiration(expiry)
-            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)), algorithm)
             .compact();
     }
 
@@ -306,9 +361,24 @@ class AuthenticationFilterTest {
             List.of(HttpMethod.GET),
             List.of("HR")
         );
+        GatewayAuthorizationProperties.AuthorizationRuleProperties leavesMyUiRule = authorizationRule(
+            "/leaves/my",
+            List.of(HttpMethod.GET),
+            List.of("EMPLOYEE")
+        );
+        GatewayAuthorizationProperties.AuthorizationRuleProperties leavesNewUiRule = authorizationRule(
+            "/leaves/new",
+            List.of(HttpMethod.GET, HttpMethod.POST),
+            List.of("HR", "EMPLOYEE")
+        );
+        GatewayAuthorizationProperties.AuthorizationRuleProperties leavesIndexUiRule = authorizationRule(
+            "/leaves",
+            List.of(HttpMethod.GET),
+            List.of("HR")
+        );
         GatewayAuthorizationProperties.AuthorizationRuleProperties leavesUiRule = authorizationRule(
             "/leaves/**",
-            List.of(HttpMethod.GET, HttpMethod.POST),
+            List.of(HttpMethod.GET),
             List.of("HR", "EMPLOYEE")
         );
 
@@ -316,6 +386,9 @@ class AuthenticationFilterTest {
             authAdminRule,
             logoutRule,
             employeesUiRule,
+            leavesMyUiRule,
+            leavesNewUiRule,
+            leavesIndexUiRule,
             leavesUiRule,
             employeeMutationRule,
             departmentMutationRule

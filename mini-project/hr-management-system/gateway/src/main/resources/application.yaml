@@ -180,11 +180,43 @@ spring:
               uri: lb://EMPLOYEE-SERVICE
               predicates:
                 - Path=/employees,/employees/**,/departments,/departments/**,/css/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userKeyResolver}"
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: employee-service-circuit-breaker
+                    fallbackUri: forward:/fallback/employee-service
+                    statusCodes:
+                      - 500
+                      - 502
+                      - 503
+                      - 504
             - id: leave-service-views
               order: 90
               uri: lb://LEAVE-SERVICE
               predicates:
                 - Path=/leaves,/leaves/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userKeyResolver}"
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: leave-service-circuit-breaker
+                    fallbackUri: forward:/fallback/leave-service
+                    statusCodes:
+                      - 500
+                      - 502
+                      - 503
+                      - 504
 eureka:
   client:
     service-url:
@@ -246,11 +278,17 @@ gateway:
     - path: /leaves/*/cancel
       methods: [POST]
       roles: [EMPLOYEE]
-    - path: /leaves
+    - path: /leaves/my
+      methods: [GET]
+      roles: [EMPLOYEE]
+    - path: /leaves/new
       methods: [GET, POST]
       roles: [HR, EMPLOYEE]
+    - path: /leaves
+      methods: [GET]
+      roles: [HR]
     - path: /leaves/**
-      methods: [GET, POST]
+      methods: [GET]
       roles: [HR, EMPLOYEE]
     - path: /api/employees/*/contact
       methods: [PATCH]
