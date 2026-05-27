@@ -2,6 +2,7 @@ package vn.amela.leaveservice.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
+import vn.amela.leaveservice.exception.InvalidRequestException;
 
 @Component
 public class CurrentUserProvider {
@@ -12,13 +13,17 @@ public class CurrentUserProvider {
         String username = request.getHeader("X-Username");
 
         if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("Missing X-User-Id header");
+            throw new InvalidRequestException("Missing X-User-Id header");
         }
 
         if (role == null || role.isBlank()) {
-            throw new IllegalArgumentException("Missing X-Role header");
+            throw new InvalidRequestException("Missing X-Role header");
         }
 
-        return new CurrentUser(username, Long.parseLong(userId), role);
+        try {
+            return new CurrentUser(username, Long.parseLong(userId), role);
+        } catch (NumberFormatException e) {
+            throw new InvalidRequestException("Invalid X-User-Id header");
+        }
     }
 }
