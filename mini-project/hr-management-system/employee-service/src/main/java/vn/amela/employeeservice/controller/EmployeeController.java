@@ -17,6 +17,7 @@ import vn.amela.employeeservice.service.EmployeeService;
 @RequiredArgsConstructor
 public class EmployeeController {
     private static final String ROLE_HEADER = "X-Role";
+    private static final String USER_ID_HEADER = "X-User-Id";
 
     private final EmployeeService employeeService;
 
@@ -37,7 +38,7 @@ public class EmployeeController {
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeResponse> getEmployeeById(
             @PathVariable Long id,
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader(USER_ID_HEADER) Long userId,
             @RequestHeader(ROLE_HEADER) String userRole
     ) {
         return ResponseEntity.ok(employeeService.getById(id, userId, userRole));
