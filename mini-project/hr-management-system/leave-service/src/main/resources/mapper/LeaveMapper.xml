@@ -93,7 +93,9 @@
     <update id="cancel">
         UPDATE leave_requests
         SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP
-        WHERE id = #{id} AND status = 'PENDING'
+        WHERE id = #{id}
+          AND employee_id = #{employeeId}
+          AND status = 'PENDING'
     </update>
 
     <select id="findById" resultType="vn.amela.leaveservice.entity.LeaveRequest">

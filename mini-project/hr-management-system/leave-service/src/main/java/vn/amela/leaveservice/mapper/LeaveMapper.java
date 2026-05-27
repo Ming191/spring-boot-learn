@@ -40,5 +40,8 @@ public interface LeaveMapper {
             @Param("reviewerNote") String reviewerNote,
             @Param("reviewedAt") LocalDateTime reviewedAt
     );
-    int cancel(@Param("id") Long id);
+    int cancel(
+            @Param("id") Long id,
+            @Param("employeeId") Long employeeId
+    );
 }
