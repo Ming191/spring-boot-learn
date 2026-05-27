@@ -4,10 +4,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import vn.amela.leaveservice.entity.enums.LeaveType;
+import vn.amela.leaveservice.validation.ValidDateRange;
 
 import java.time.LocalDate;
 
 @Builder
+@ValidDateRange
 public record CreateLeaveRequest(
         @NotNull(message = "Leave type cannot be null")
         LeaveType leaveType,
