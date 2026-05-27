@@ -1,7 +1,9 @@
 package vn.amela.leaveservice.entity;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import vn.amela.leaveservice.entity.enums.LeaveStatus;
 import vn.amela.leaveservice.entity.enums.LeaveType;
 
@@ -10,6 +12,8 @@ import java.time.LocalDateTime;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class LeaveRequest {
     private Long id;
     private Long employeeId;
