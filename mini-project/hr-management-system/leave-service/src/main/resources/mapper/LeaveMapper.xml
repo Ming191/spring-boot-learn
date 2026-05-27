@@ -128,6 +128,7 @@
             <when test='sortDirection == "asc" or sortDirection == "ASC"'>ASC</when>
             <otherwise>DESC</otherwise>
         </choose>
+        , id ASC
         LIMIT #{size} OFFSET #{offset}
     </select>
 
@@ -141,7 +142,7 @@
         SELECT <include refid="leave_columns" />
         FROM leave_requests
         WHERE employee_id = #{employeeId}
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, id
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
