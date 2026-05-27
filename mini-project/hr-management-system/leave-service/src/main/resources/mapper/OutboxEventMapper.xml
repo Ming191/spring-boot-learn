@@ -56,6 +56,7 @@
         WHERE status = 'PENDING'
         ORDER BY created_at
         LIMIT #{limit}
+        FOR UPDATE SKIP LOCKED
     </select>
 
 

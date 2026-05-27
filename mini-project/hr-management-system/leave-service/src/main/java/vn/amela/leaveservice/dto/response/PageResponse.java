@@ -9,8 +9,8 @@ import java.util.List;
 @Builder
 public class PageResponse<T> {
     private List<T> items;
-    private int size;
-    private int page;
-    private int totalPages;
+    private Integer size;
+    private Integer page;
+    private Integer totalPages;
     private Long totalElements;
 }

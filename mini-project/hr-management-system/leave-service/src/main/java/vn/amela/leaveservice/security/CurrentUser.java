@@ -5,11 +5,11 @@ public record CurrentUser(
         Long userId,
         String role
 ) {
-    public Boolean isHr() {
+    public boolean isHr() {
         return "HR".equalsIgnoreCase(role);
     }
 
-    public Boolean isEmployee() {
+    public boolean isEmployee() {
         return "EMPLOYEE".equalsIgnoreCase(role);
     }
 }
