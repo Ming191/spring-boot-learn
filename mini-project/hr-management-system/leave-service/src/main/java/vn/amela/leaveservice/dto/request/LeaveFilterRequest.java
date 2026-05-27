@@ -1,5 +1,7 @@
 package vn.amela.leaveservice.dto.request;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 
 import vn.amela.leaveservice.entity.enums.LeaveStatus;
 import vn.amela.leaveservice.entity.enums.LeaveType;
@@ -13,8 +15,8 @@ public record LeaveFilterRequest(
     LocalDate fromDate,
     LocalDate toDate,
     String departmentName,
-    int page,
-    int size,
+    @Min(1) int page,
+    @Min(1) @Max(100) int size,
     String sortBy,
     String sortDirection
 ) { }
