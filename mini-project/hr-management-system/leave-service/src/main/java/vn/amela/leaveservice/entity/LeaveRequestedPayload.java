@@ -1,15 +1,15 @@
-package vn.amela.leaveservice.dto.response;
+package vn.amela.leaveservice.entity;
 
-import lombok.Builder;
 import vn.amela.leaveservice.entity.enums.LeaveStatus;
 import vn.amela.leaveservice.entity.enums.LeaveType;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
-@Builder
-public record LeaveResponse(
-        Long id,
+public record LeaveRequestedPayload(
+        String eventType,
+        String aggregateType,
+        Long aggregateId,
         Long employeeId,
         String employeeCode,
         String employeeName,
@@ -18,11 +18,7 @@ public record LeaveResponse(
         LocalDate fromDate,
         LocalDate toDate,
         int totalDays,
-        String reason,
         LeaveStatus status,
-        Long reviewedBy,
-        String reviewerNote,
-        LocalDateTime reviewedAt,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
-) { }
+        Instant timestamp
+) {
+}
