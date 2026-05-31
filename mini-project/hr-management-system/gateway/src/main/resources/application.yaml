@@ -17,6 +17,10 @@ spring:
               uri: lb://EMPLOYEE-SERVICE
               predicates:
                 - Path=/api/employees/**,/api/departments/**
+            - id: employee-service-views
+              uri: lb://EMPLOYEE-SERVICE
+              predicates:
+                - Path=/employees,/employees/**,/departments,/departments/**,/css/**
             - id: leave-service
               uri: lb://LEAVE-SERVICE
               predicates:
@@ -51,6 +55,7 @@ gateway:
     - /api/auth/login
     - /api/auth/register
     - /api/auth/refresh
+    - /css/**
     - /actuator/health
     - /actuator/info
   authorization-rules:
@@ -61,4 +66,22 @@ gateway:
       roles: [HR]
     - path: /api/departments/**
       methods: [POST, PUT, DELETE]
+      roles: [HR]
+    - path: /employees
+      methods: [POST]
+      roles: [HR]
+    - path: /employees/create
+      roles: [HR]
+    - path: /employees/*/edit
+      roles: [HR]
+    - path: /employees/**
+      methods: [POST]
+      roles: [HR]
+    - path: /departments
+      methods: [POST]
+      roles: [HR]
+    - path: /departments/create
+      roles: [HR]
+    - path: /departments/**
+      methods: [POST]
       roles: [HR]
