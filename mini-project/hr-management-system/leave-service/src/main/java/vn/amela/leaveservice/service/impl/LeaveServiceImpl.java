@@ -174,18 +174,21 @@ public class LeaveServiceImpl implements LeaveService {
             String eventType,
             Object payload
     ) {
+        String serializedPayload;
         try {
-            OutboxEvent event = OutboxEvent.builder()
-                    .aggregateType(aggregateType)
-                    .aggregateId(aggregateId)
-                    .eventType(eventType)
-                    .payload(objectMapper.writeValueAsString(payload))
-                    .build();
-
-            outboxEventMapper.insert(event);
+            serializedPayload = objectMapper.writeValueAsString(payload);
         } catch (Exception exception) {
-            throw new BusinessException("Failed to serialize outbox event payload");
+            throw new BusinessException("Failed to serialize outbox event payload", exception);
         }
+
+        OutboxEvent event = OutboxEvent.builder()
+                .aggregateType(aggregateType)
+                .aggregateId(aggregateId)
+                .eventType(eventType)
+                .payload(serializedPayload)
+                .build();
+
+        outboxEventMapper.insert(event);
     }
 
     private LeaveRequest loadCreatedLeaveRequest(Long id) {
