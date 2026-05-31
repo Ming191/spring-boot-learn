@@ -33,6 +33,7 @@ import java.time.temporal.ChronoUnit;
 public class LeaveServiceImpl implements LeaveService {
 
     private static final String LEAVE_REQUESTED_EVENT = "leave.requested";
+    private static final String LEAVE_CANCELLED_EVENT = "leave.cancelled";
     private static final String LEAVE_AGGREGATE_TYPE = "LEAVE_REQUEST";
 
 
@@ -111,13 +112,36 @@ public class LeaveServiceImpl implements LeaveService {
     }
 
     @Override
+    @Transactional
     public LeaveResponse cancel(Long id, CurrentUser user) {
-        return null;
+        requireLeaveViewerRole(user);
+
+        LeaveRequest currentLeaveRequest = loadLeaveRequest(id);
+        EmployeeSnapshotResponse employee = employeeSnapshotService.getEmployeeSnapshotByAuthUserId(user.userId());
+        if (!currentLeaveRequest.getEmployeeId().equals(employee.id())) {
+            throw new ForbiddenActionException("You can only cancel your own leave requests");
+        }
+
+        int updatedRows = leaveMapper.cancel(id, employee.id());
+        if (updatedRows == 0) {
+            throw new BusinessException("Only pending leave requests can be cancelled");
+        }
+
+        LeaveRequest cancelledLeaveRequest = loadLeaveRequest(id);
+        saveOutboxEvent(LEAVE_AGGREGATE_TYPE, id, LEAVE_CANCELLED_EVENT, cancelledLeaveRequest);
+
+        return toResponse(cancelledLeaveRequest);
     }
 
     private void requireLeaveCreatorRole(CurrentUser user) {
         if (!user.isHr() && !user.isEmployee()) {
             throw new ForbiddenActionException("Only HR or Employee can create leave requests");
+        }
+    }
+
+    private void requireLeaveViewerRole(CurrentUser user) {
+        if (user == null || (!user.isHr() && !user.isEmployee())) {
+            throw new ForbiddenActionException("Only HR or Employee can view leave requests");
         }
     }
 
@@ -194,6 +218,11 @@ public class LeaveServiceImpl implements LeaveService {
     private LeaveRequest loadCreatedLeaveRequest(Long id) {
         return leaveMapper.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Created leave request not found"));
+    }
+
+    private LeaveRequest loadLeaveRequest(Long id) {
+        return leaveMapper.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Leave request not found"));
     }
 
     private LeaveResponse toResponse(LeaveRequest request) {
