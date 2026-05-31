@@ -26,6 +26,7 @@ import vn.amela.leaveservice.service.LeaveService;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 @Service
@@ -33,6 +34,7 @@ import java.time.temporal.ChronoUnit;
 public class LeaveServiceImpl implements LeaveService {
 
     private static final String LEAVE_REQUESTED_EVENT = "leave.requested";
+    private static final String LEAVE_APPROVED_EVENT = "leave.approved";
     private static final String LEAVE_AGGREGATE_TYPE = "LEAVE_REQUEST";
 
 
@@ -101,8 +103,25 @@ public class LeaveServiceImpl implements LeaveService {
     }
 
     @Override
+    @Transactional
     public LeaveResponse approve(Long id, ReviewLeaveRequest request, CurrentUser user) {
-        return null;
+        requireHrRole(user);
+
+        loadLeaveRequest(id);
+        int updatedRows = leaveMapper.approve(
+                id,
+                user.userId(),
+                request == null ? null : request.reviewerNote(),
+                LocalDateTime.now()
+        );
+        if (updatedRows == 0) {
+            throw new BusinessException("Only pending leave requests can be approved");
+        }
+
+        LeaveRequest approvedLeaveRequest = loadLeaveRequest(id);
+        saveOutboxEvent(LEAVE_AGGREGATE_TYPE, id, LEAVE_APPROVED_EVENT, approvedLeaveRequest);
+
+        return toResponse(approvedLeaveRequest);
     }
 
     @Override
@@ -118,6 +137,12 @@ public class LeaveServiceImpl implements LeaveService {
     private void requireLeaveCreatorRole(CurrentUser user) {
         if (!user.isHr() && !user.isEmployee()) {
             throw new ForbiddenActionException("Only HR or Employee can create leave requests");
+        }
+    }
+
+    private void requireHrRole(CurrentUser user) {
+        if (user == null || !user.isHr()) {
+            throw new ForbiddenActionException("Only HR can review leave requests");
         }
     }
 
@@ -194,6 +219,11 @@ public class LeaveServiceImpl implements LeaveService {
     private LeaveRequest loadCreatedLeaveRequest(Long id) {
         return leaveMapper.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Created leave request not found"));
+    }
+
+    private LeaveRequest loadLeaveRequest(Long id) {
+        return leaveMapper.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Leave request not found"));
     }
 
     private LeaveResponse toResponse(LeaveRequest request) {
