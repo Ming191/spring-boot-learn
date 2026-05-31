@@ -84,7 +84,6 @@
         WHERE name = #{name}
           AND id != #{id}
     </select>
-
     <select id="existsActiveById" resultType="java.lang.Boolean">
         SELECT EXISTS (
             SELECT 1

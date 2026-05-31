@@ -340,7 +340,7 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("logout revokes an active refresh token")
+    @DisplayName("logout revokes all refresh tokens for the authenticated token owner")
     void logoutRevokesToken() {
         RefreshToken storedToken = refreshToken(20L, 1L, LocalDateTime.now().plusDays(1), null);
         when(refreshTokenService.hashToken("raw-refresh")).thenReturn("hash");
@@ -348,7 +348,8 @@ class AuthServiceTest {
 
         authService.logout(refreshRequest("raw-refresh"));
 
-        verify(refreshTokenMapper).revokeById(20L);
+        verify(refreshTokenMapper).revokeAllByUserId(1L);
+        verify(refreshTokenMapper, never()).revokeById(any());
     }
 
     @Test
@@ -359,6 +360,7 @@ class AuthServiceTest {
         authService.logout(refreshRequest("raw-refresh"));
 
         verify(refreshTokenMapper, never()).revokeById(any());
+        verify(refreshTokenMapper, never()).revokeAllByUserId(any());
     }
 
     private static RegisterRequest registerRequest(String username, String email, String fullName) {

@@ -51,12 +51,12 @@ CREATE INDEX idx_refresh_user_id         ON refresh_tokens (user_id);
 CREATE INDEX idx_refresh_expires_at      ON refresh_tokens (expires_at);
 
 INSERT INTO users (username, password, email, full_name, role) VALUES
-('hr_admin',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'hr@company.com',       'HR Admin',      'HR'),
-('hr_manager', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'hr2@company.com',      'HR Manager',    'HR'),
-('emp_nguyen', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'nguyen@company.com',   'Nguyễn Văn An', 'EMPLOYEE'),
-('emp_tran',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'tran@company.com',     'Trần Thị Bình', 'EMPLOYEE'),
-('emp_le',     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'le@company.com',       'Lê Minh Cường', 'EMPLOYEE'),
-('emp_pham',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'pham@company.com',     'Phạm Thị Dung', 'EMPLOYEE');
+('hr_admin',   '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'hr@company.com',       'HR Admin',      'HR'),
+('hr_manager', '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'hr2@company.com',      'HR Manager',    'HR'),
+('emp_nguyen', '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'nguyen@company.com',   'Nguyễn Văn An', 'EMPLOYEE'),
+('emp_tran',   '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'tran@company.com',     'Trần Thị Bình', 'EMPLOYEE'),
+('emp_le',     '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'le@company.com',       'Lê Minh Cường', 'EMPLOYEE'),
+('emp_pham',   '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'pham@company.com',     'Phạm Thị Dung', 'EMPLOYEE');
 
 
 -- ============================================================
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS outbox_events (
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE INDEX idx_outbox_emp_status ON outbox_events (status);
+CREATE INDEX idx_outbox_emp_status_created_at ON outbox_events (status, created_at);
 
 CREATE INDEX idx_emp_status        ON employees (status);
 CREATE INDEX idx_emp_department    ON employees (department_id);
@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS outbox_events (
      PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE INDEX idx_outbox_leave_status ON outbox_events (status);
+CREATE INDEX idx_outbox_leave_status_created_at ON outbox_events (status, created_at);
 
 CREATE INDEX idx_leave_employee_id  ON leave_requests (employee_id);
 CREATE INDEX idx_leave_status       ON leave_requests (status);

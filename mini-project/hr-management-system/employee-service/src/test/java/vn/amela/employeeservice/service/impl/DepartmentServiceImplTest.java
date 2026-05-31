@@ -36,6 +36,12 @@ class DepartmentServiceImplTest {
     void createDepartment_success() {
         CreateDepartmentRequest request = new CreateDepartmentRequest(" Engineering ", " Product team ", null);
         when(departmentMapper.findByName("Engineering")).thenReturn(null);
+        doAnswer(invocation -> {
+            Department department = invocation.getArgument(0);
+            department.setId(1L);
+            return null;
+        }).when(departmentMapper).insert(any(Department.class));
+        when(departmentMapper.findById(1L)).thenAnswer(invocation -> departmentCaptorValue());
 
         DepartmentResponse response = departmentService.create(request);
 
@@ -48,6 +54,16 @@ class DepartmentServiceImplTest {
         assertThat(department.getIsActive()).isTrue();
         assertThat(response.name()).isEqualTo("Engineering");
         assertThat(response.isActive()).isTrue();
+    }
+
+    private Department departmentCaptorValue() {
+        return Department.builder()
+                .id(1L)
+                .name("Engineering")
+                .description("Product team")
+                .managerId(null)
+                .isActive(true)
+                .build();
     }
 
     @Test
@@ -77,7 +93,7 @@ class DepartmentServiceImplTest {
                 .managerId(10L)
                 .isActive(true)
                 .build();
-        when(departmentMapper.findById(1L)).thenReturn(department);
+        when(departmentMapper.findById(1L)).thenReturn(department, department);
 
         DepartmentResponse response = departmentService.getById(1L);
 

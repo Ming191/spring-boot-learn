@@ -8,12 +8,11 @@ import org.springframework.web.bind.annotation.*;
 import vn.amela.authservice.dto.request.LoginRequest;
 import vn.amela.authservice.dto.request.RefreshRequest;
 import vn.amela.authservice.dto.request.RegisterRequest;
+import vn.amela.authservice.dto.response.CurrentUserResponse;
 import vn.amela.authservice.dto.response.TokenResponse;
 import vn.amela.authservice.dto.response.UserResponse;
+import vn.amela.authservice.security.AuthenticatedUser;
 import vn.amela.authservice.service.AuthService;
-
-import java.util.Map;
-import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -33,12 +32,13 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> me(Authentication authentication) {
-        return ResponseEntity.ok(Map.of(
-            "username", authentication.getName(),
-            "authorities", authentication.getAuthorities(),
-            "userId", Objects.requireNonNull(authentication.getDetails())
-        ));
+    public CurrentUserResponse me(Authentication authentication) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return CurrentUserResponse.builder()
+            .userId(user.userId())
+            .username(user.username())
+            .role(user.role())
+            .build();
     }
 
     @PostMapping("/refresh")

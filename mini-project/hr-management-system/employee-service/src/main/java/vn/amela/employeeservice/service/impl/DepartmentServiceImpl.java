@@ -48,7 +48,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
         departmentMapper.insert(department);
 
-        return toResponse(department);
+        return toResponse(loadDepartment(department.getId()));
     }
 
     @Override
@@ -115,7 +115,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
         departmentMapper.update(department);
 
-        return toResponse(department);
+        return toResponse(loadDepartment(id));
     }
 
     @Override
@@ -146,6 +146,14 @@ public class DepartmentServiceImpl implements DepartmentService {
             return null;
         }
         return text.trim();
+    }
+
+    private Department loadDepartment(Long id) {
+        Department department = departmentMapper.findById(id);
+        if (department == null) {
+            throw new BusinessException("Failed to load department");
+        }
+        return department;
     }
 
     private DepartmentResponse toResponse(Department department) {

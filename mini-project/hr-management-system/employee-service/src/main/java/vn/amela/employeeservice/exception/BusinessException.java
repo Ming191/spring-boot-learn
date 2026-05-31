@@ -6,4 +6,8 @@ public class BusinessException extends EmployeeException {
     public BusinessException(String message) {
         super(message, HttpStatus.BAD_REQUEST, "BUSINESS_ERROR");
     }
+
+    public BusinessException(String message, Throwable cause) {
+        super(message, HttpStatus.BAD_REQUEST, "BUSINESS_ERROR", cause);
+    }
 }

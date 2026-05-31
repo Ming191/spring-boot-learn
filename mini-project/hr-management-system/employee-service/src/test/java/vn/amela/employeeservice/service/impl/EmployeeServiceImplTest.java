@@ -281,7 +281,7 @@ class EmployeeServiceImplTest {
         verify(outboxEventMapper).insert(eventCaptor.capture());
 
         OutboxEvent event = eventCaptor.getValue();
-        assertThat(event.getAggregateType()).isEqualTo("EMPLOYEE");
+        assertThat(event.getAggregateType()).isEqualTo("Employee");
         assertThat(event.getAggregateId()).isEqualTo(1L);
         assertThat(event.getEventType()).isEqualTo("employee.status.changed");
 

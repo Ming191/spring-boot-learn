@@ -1,0 +1,106 @@
+package vn.amela.gateway.security;
+
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NullMarked;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
+import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
+import org.springframework.core.Ordered;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import vn.amela.gateway.configuration.PreAuthRateLimitProperties;
+import vn.amela.gateway.dto.response.GatewayErrorResponse;
+
+import java.time.Instant;
+import java.util.Collections;
+
+@Component
+@RequiredArgsConstructor
+@NullMarked
+public class PreAuthenticationRateLimiterFilter implements GlobalFilter, Ordered {
+
+    private static final String PRE_AUTH_ROUTE_ID = "pre-auth";
+    private static final String TOO_MANY_REQUESTS = "Too many requests";
+    private static final String TOO_MANY_REQUESTS_CODE = "TOO_MANY_REQUESTS";
+
+    private final RedisRateLimiter redisRateLimiter;
+    @Qualifier("ipKeyResolver")
+    private final KeyResolver keyResolver;
+    private final PreAuthRateLimitProperties properties;
+    private final ObjectMapper objectMapper;
+
+    @PostConstruct
+    void configureRateLimiter() {
+        RedisRateLimiter.Config config = new RedisRateLimiter.Config()
+            .setReplenishRate(properties.getReplenishRate())
+            .setBurstCapacity(properties.getBurstCapacity())
+            .setRequestedTokens(properties.getRequestedTokens());
+
+        redisRateLimiter.getConfig().put(PRE_AUTH_ROUTE_ID, config);
+    }
+
+    @Override
+    public Mono<Void> filter(
+        ServerWebExchange exchange,
+        GatewayFilterChain chain
+    ) {
+        if (!properties.isEnabled()) {
+            return chain.filter(exchange);
+        }
+
+        String path = exchange.getRequest().getURI().getPath();
+        if (path.startsWith("/actuator/health/") ||
+            path.startsWith("/actuator/info/")) {
+
+            return chain.filter(exchange);
+        }
+
+        return keyResolver.resolve(exchange)
+            .filter(key -> !key.isBlank())
+            .defaultIfEmpty("ip:unknown")
+            .flatMap(key -> redisRateLimiter.isAllowed(PRE_AUTH_ROUTE_ID, key))
+            .flatMap(response -> {
+                if (response.isAllowed()) {
+                    return chain.filter(exchange);
+                }
+
+                return tooManyRequests(exchange);
+            })
+            .onErrorResume(exception -> chain.filter(exchange));
+    }
+
+    @Override
+    public int getOrder() {
+        return -2;
+    }
+
+    private Mono<Void> tooManyRequests(ServerWebExchange exchange) {
+        var response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+        GatewayErrorResponse errorResponse = new GatewayErrorResponse(
+            Instant.now().toString(),
+            HttpStatus.TOO_MANY_REQUESTS.value(),
+            TOO_MANY_REQUESTS_CODE,
+            TOO_MANY_REQUESTS,
+            exchange.getRequest().getURI().getPath(),
+            Collections.emptyList()
+        );
+
+        try {
+            byte[] body = objectMapper.writeValueAsBytes(errorResponse);
+            return response.writeWith(Mono.just(response.bufferFactory().wrap(body)));
+        } catch (JacksonException exception) {
+            return response.setComplete();
+        }
+    }
+}

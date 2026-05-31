@@ -3,6 +3,7 @@ package vn.amela.employeeservice.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -30,7 +31,7 @@ public class GlobalExceptionHandler {
         HttpServletRequest request
     ) {
         return buildResponse(
-            exception.getStatus(),
+            exception.getStatus().value(),
             exception.getCode(),
             exception.getMessage(),
             request.getRequestURI(),
@@ -59,7 +60,7 @@ public class GlobalExceptionHandler {
             .toList();
 
         return buildResponse(
-            HttpStatus.BAD_REQUEST,
+            HttpStatus.BAD_REQUEST.value(),
             "VALIDATION_ERROR",
             "Request is invalid",
             request.getRequestURI(),
@@ -74,9 +75,24 @@ public class GlobalExceptionHandler {
     ) {
         log.warn("Unreadable request body on {}: {}", request.getRequestURI(), exception.getMessage());
         return buildResponse(
-            HttpStatus.BAD_REQUEST,
+            HttpStatus.BAD_REQUEST.value(),
             "INVALID_REQUEST_BODY",
             "Request body is missing or invalid",
+            request.getRequestURI(),
+            List.of()
+        );
+    }
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateKey(
+        DuplicateKeyException exception,
+        HttpServletRequest request
+    ) {
+        log.warn("Duplicate key violation on {}: {}", request.getRequestURI(), exception.getMessage());
+        return buildResponse(
+            HttpStatus.CONFLICT.value(),
+            "DUPLICATE_RESOURCE",
+            "Resource already exists",
             request.getRequestURI(),
             List.of()
         );
@@ -89,9 +105,9 @@ public class GlobalExceptionHandler {
     ) {
         log.warn("Data integrity violation on {}: {}", request.getRequestURI(), exception.getMessage());
         return buildResponse(
-            HttpStatus.CONFLICT,
-            "DUPLICATE_RESOURCE",
-            "Resource already exists",
+            HttpStatus.CONFLICT.value(),
+            "CONSTRAINT_VIOLATION",
+            "Data integrity constraint violated",
             request.getRequestURI(),
             List.of()
         );
@@ -102,11 +118,14 @@ public class GlobalExceptionHandler {
         ResponseStatusException exception,
         HttpServletRequest request
     ) {
-        HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
+        HttpStatus resolved = HttpStatus.resolve(exception.getStatusCode().value());
+        int statusCode = resolved == null ? exception.getStatusCode().value() : resolved.value();
         return buildResponse(
-            status,
-            status.name(),
-            exception.getReason() == null ? status.getReasonPhrase() : exception.getReason(),
+            statusCode,
+            resolved == null ? String.valueOf(statusCode) : resolved.name(),
+            exception.getReason() == null
+                ? (resolved == null ? "HTTP " + statusCode : resolved.getReasonPhrase())
+                : exception.getReason(),
             request.getRequestURI(),
             List.of()
         );
@@ -119,7 +138,7 @@ public class GlobalExceptionHandler {
     ) {
         log.error("Unexpected error on {}", request.getRequestURI(), exception);
         return buildResponse(
-            HttpStatus.INTERNAL_SERVER_ERROR,
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
             "INTERNAL_ERROR",
             "An unexpected error occurred",
             request.getRequestURI(),
@@ -128,7 +147,7 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ErrorResponse> buildResponse(
-        HttpStatus status,
+        int status,
         String code,
         String message,
         String path,
@@ -136,7 +155,7 @@ public class GlobalExceptionHandler {
     ) {
         ErrorResponse response = ErrorResponse.builder()
             .timestamp(Instant.now())
-            .status(status.value())
+            .status(status)
             .code(code)
             .message(message)
             .path(path)

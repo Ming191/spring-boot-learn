@@ -40,7 +40,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     private static final String EMPLOYEE_CREATED_EVENT = "employee.created";
     private static final String EMPLOYEE_AGGREGATE_TYPE = "Employee";
     private static final String EMPLOYEE_STATUS_CHANGED_EVENT = "employee.status.changed";
-    private static final String EMPLOYEE_UPDATE_AGGREGATE_TYPE = "EMPLOYEE";
+    private static final String EMPLOYEE_DEACTIVATED_EVENT = "employee.deactivated";
 
     protected final EmployeeMapper employeeMapper;
     protected final DepartmentMapper departmentMapper;
@@ -252,17 +252,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         currentEmployee.setStatus(EmployeeStatus.INACTIVE);
 
-        try {
-            OutboxEvent event = OutboxEvent.builder()
-                    .aggregateType("Employee")
-                    .aggregateId(id)
-                    .eventType("employee.deactivated")
-                    .payload(objectMapper.writeValueAsString(currentEmployee))
-                    .build();
-            outboxEventMapper.insert(event);
-        } catch (Exception e) {
-            throw new BusinessException("Failed to serialize outbox event payload");
-        }
+        saveEmployeeDeactivatedEvent(currentEmployee);
     }
 
     private String normalizeEmployeeCode(String employeeCode) {
@@ -311,33 +301,33 @@ public class EmployeeServiceImpl implements EmployeeService {
                 Instant.now()
         );
 
-        try {
-            OutboxEvent event = OutboxEvent.builder()
-                    .aggregateType(EMPLOYEE_AGGREGATE_TYPE)
-                    .aggregateId(employee.getId())
-                    .eventType(EMPLOYEE_CREATED_EVENT)
-                    .payload(objectMapper.writeValueAsString(payload))
-                    .build();
-
-            outboxEventMapper.insert(event);
-        } catch (Exception e) {
-            throw new BusinessException("Failed to serialize outbox event payload");
-        }
+        saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_CREATED_EVENT, payload);
     }
 
     private void saveEmployeeStatusChangedEvent(Employee employee) {
-        try {
-            OutboxEvent event = OutboxEvent.builder()
-                    .aggregateType(EMPLOYEE_UPDATE_AGGREGATE_TYPE)
-                    .aggregateId(employee.getId())
-                    .eventType(EMPLOYEE_STATUS_CHANGED_EVENT)
-                    .payload(objectMapper.writeValueAsString(employee))
-                    .build();
+        saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_STATUS_CHANGED_EVENT, employee);
+    }
 
-            outboxEventMapper.insert(event);
+    private void saveEmployeeDeactivatedEvent(Employee employee) {
+        saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_DEACTIVATED_EVENT, employee);
+    }
+
+    private void saveOutboxEvent(String aggregateType, Long aggregateId, String eventType, Object payloadSource) {
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(payloadSource);
         } catch (Exception e) {
-            throw new BusinessException("Failed to serialize outbox event payload");
+            throw new BusinessException("Failed to serialize outbox event payload", e);
         }
+
+        OutboxEvent event = OutboxEvent.builder()
+                .aggregateType(aggregateType)
+                .aggregateId(aggregateId)
+                .eventType(eventType)
+                .payload(payload)
+                .build();
+
+        outboxEventMapper.insert(event);
     }
 
     private Employee buildEmployee(CreateEmployeeRequest request, String employeeCode, String email) {

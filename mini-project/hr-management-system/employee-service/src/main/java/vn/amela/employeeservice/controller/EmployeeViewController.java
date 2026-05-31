@@ -123,12 +123,15 @@ public class EmployeeViewController {
     public String updateContact(
             @PathVariable Long id,
             @RequestHeader(USER_ID_HEADER) Long userId,
+            @RequestHeader(ROLE_HEADER) String userRole,
             @Valid @ModelAttribute("contact") UpdateContactRequest request,
             BindingResult bindingResult,
             Model model
     ) {
         if (bindingResult.hasErrors()) {
+            EmployeeResponse employee = employeeService.getById(id, userId, userRole);
             model.addAttribute("id", id);
+            model.addAttribute("employeeName", employee.fullName());
             return "employees/contact";
         }
 

@@ -15,7 +15,7 @@
     </sql>
 
     <insert id="insert"
-            keyProperty="id"
+            keyProperty="outboxEvent.id"
             useGeneratedKeys="true"
     >
 
@@ -27,10 +27,10 @@
         status
     )
     VALUES (
-        #{aggregateType},
-        #{aggregateId},
-        #{eventType},
-        #{payload},
+        #{outboxEvent.aggregateType},
+        #{outboxEvent.aggregateId},
+        #{outboxEvent.eventType},
+        #{outboxEvent.payload},
         'PENDING'
    )
 
@@ -41,6 +41,7 @@
         UPDATE outbox_events
         SET status = 'PUBLISHED', published_at = NOW()
         WHERE id = #{id}
+          AND status = 'PENDING'
 
     </update>
     <update id="markFailed">
@@ -48,6 +49,7 @@
         UPDATE outbox_events
         SET status = 'FAILED'
         WHERE id = #{id}
+          AND status = 'PENDING'
 
     </update>
 
