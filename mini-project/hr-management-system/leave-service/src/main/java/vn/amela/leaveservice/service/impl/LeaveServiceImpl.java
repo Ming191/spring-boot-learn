@@ -27,6 +27,7 @@ import vn.amela.leaveservice.service.LeaveService;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -92,7 +93,27 @@ public class LeaveServiceImpl implements LeaveService {
 
     @Override
     public PageResponse<LeaveResponse> findMyLeaves(CurrentUser user, int page, int size) {
-        return null;
+        requireLeaveViewerRole(user);
+
+        int normalizedPage = normalizePage(page);
+        int normalizedSize = normalizeSize(size);
+        int offset = normalizedPage * normalizedSize;
+
+        EmployeeSnapshotResponse employee = employeeSnapshotService.getEmployeeSnapshotByAuthUserId(user.userId());
+        List<LeaveResponse> items = leaveMapper.findByEmployeeId(employee.id(), normalizedSize, offset)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+        long totalElements = leaveMapper.countByEmployeeId(employee.id());
+        int totalPages = (int) Math.ceil((double) totalElements / normalizedSize);
+
+        return PageResponse.<LeaveResponse>builder()
+                .items(items)
+                .page(normalizedPage)
+                .size(normalizedSize)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
     }
 
     @Override
@@ -119,6 +140,23 @@ public class LeaveServiceImpl implements LeaveService {
         if (!user.isHr() && !user.isEmployee()) {
             throw new ForbiddenActionException("Only HR or Employee can create leave requests");
         }
+    }
+
+    private void requireLeaveViewerRole(CurrentUser user) {
+        if (user == null || (!user.isHr() && !user.isEmployee())) {
+            throw new ForbiddenActionException("Only HR or Employee can view leave requests");
+        }
+    }
+
+    private int normalizePage(int page) {
+        return Math.max(page, 0);
+    }
+
+    private int normalizeSize(int size) {
+        if (size <= 0) {
+            return 10;
+        }
+        return Math.min(size, 100);
     }
 
     private void saveLeaveRequestedEvent(LeaveRequest leaveRequest) {
