@@ -25,6 +25,12 @@ class JwtServiceTest {
 
         String token = jwtService.generateAccessToken(user);
 
+        assertThat(Jwts.parser()
+            .verifyWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+            .build()
+            .parseSignedClaims(token)
+            .getHeader()
+            .getAlgorithm()).isEqualTo("HS256");
         assertThat(jwtService.isTokenValid(token)).isTrue();
         assertThat(jwtService.extractId(token)).isEqualTo(1L);
         assertThat(jwtService.extractUsername(token)).isEqualTo("emp");
@@ -69,7 +75,7 @@ class JwtServiceTest {
             .issuedAt(now)
             .audience().add("hr-management-system").and()
             .expiration(expiry)
-            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256)
             .compact();
 
         assertThat(jwtService.isTokenValid(token)).isFalse();
@@ -89,7 +95,7 @@ class JwtServiceTest {
             .issuedAt(now)
             .audience().add("other-system").and()
             .expiration(expiry)
-            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256)
             .compact();
 
         assertThat(jwtService.isTokenValid(token)).isFalse();

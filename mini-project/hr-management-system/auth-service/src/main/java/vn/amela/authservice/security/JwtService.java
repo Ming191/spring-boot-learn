@@ -2,7 +2,9 @@ package vn.amela.authservice.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +22,7 @@ public class JwtService {
 
     private static final String ISSUER = "hr-auth-service";
     private static final String AUDIENCE = "hr-management-system";
+    private static final String JWT_ALGORITHM = "HS256";
     private SecretKey signingKey;
 
     @Value("${app.jwt.secret}")
@@ -46,18 +49,23 @@ public class JwtService {
             .audience().add(AUDIENCE).and()
             .expiration(expiry)
             .id(UUID.randomUUID().toString())
-            .signWith(getKey())
+            .signWith(getKey(), Jwts.SIG.HS256)
             .compact();
     }
 
     public Claims extractClaims(String token) {
-        return Jwts.parser()
+        Jws<Claims> claimsJws = Jwts.parser()
             .verifyWith(getKey())
             .requireIssuer(ISSUER)
             .requireAudience(AUDIENCE)
             .build()
-            .parseSignedClaims(token)
-            .getPayload();
+            .parseSignedClaims(token);
+
+        if (!JWT_ALGORITHM.equals(claimsJws.getHeader().getAlgorithm())) {
+            throw new UnsupportedJwtException("Unsupported JWT algorithm");
+        }
+
+        return claimsJws.getPayload();
     }
 
     public Long extractId(String token) {

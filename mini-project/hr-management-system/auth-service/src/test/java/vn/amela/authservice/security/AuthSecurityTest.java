@@ -1,6 +1,7 @@
 package vn.amela.authservice.security;
 
 import io.jsonwebtoken.JwtException;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import vn.amela.authservice.config.SecurityConfig;
 import vn.amela.authservice.controller.AuthController;
+import vn.amela.authservice.controller.AuthViewController;
 import vn.amela.authservice.entity.enums.Role;
 import vn.amela.authservice.security.handler.CustomAccessDeniedHandler;
 import vn.amela.authservice.security.handler.CustomAuthenticationEntryPoint;
@@ -20,11 +22,16 @@ import vn.amela.authservice.service.AuthService;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(AuthController.class)
+@WebMvcTest({
+    AuthController.class,
+    AuthViewController.class
+})
 @Import({
     SecurityConfig.class,
     CustomAuthenticationEntryPoint.class,
@@ -106,5 +113,29 @@ class AuthSecurityTest {
             .andExpect(jsonPath("$.username").value("hr_admin"))
             .andExpect(jsonPath("$.role").value("HR"))
             .andExpect(jsonPath("$.authorities").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("protected endpoint accepts access token from HttpOnly UI cookie")
+    void protectedEndpointAcceptsCookieToken() throws Exception {
+        when(jwtService.isTokenValid("cookie-token")).thenReturn(true);
+        when(jwtService.extractId("cookie-token")).thenReturn(8L);
+        when(jwtService.extractUsername("cookie-token")).thenReturn("emp_cookie");
+        when(jwtService.extractRole("cookie-token")).thenReturn(Role.EMPLOYEE);
+
+        mockMvc.perform(get("/api/auth/me")
+                .cookie(new Cookie("HR_ACCESS_TOKEN", "cookie-token")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.userId").value(8))
+            .andExpect(jsonPath("$.username").value("emp_cookie"))
+            .andExpect(jsonPath("$.role").value("EMPLOYEE"));
+    }
+
+    @Test
+    @DisplayName("logout endpoint is public at auth service for tokenless clients")
+    void logoutWithoutTokenReturnsRedirect() throws Exception {
+        mockMvc.perform(post("/logout"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/login?logout"));
     }
 }

@@ -1,6 +1,7 @@
 package vn.amela.authservice.security;
 
 import io.jsonwebtoken.JwtException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +21,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String AUTH_ERROR_ATTRIBUTE = "auth_error";
+    private static final String ACCESS_TOKEN_COOKIE = "HR_ACCESS_TOKEN";
     private static final String INVALID_TOKEN = "Invalid token";
     private static final String MISSING_CLAIMS = "Required JWT claims are missing";
 
@@ -32,14 +34,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String authorizationHeader = request.getHeader("Authorization");
-
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+        String token = resolveToken(request);
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        String token = authorizationHeader.substring(7).trim();
 
         try {
             if (token.isBlank() || !jwtService.isTokenValid(token)) {
@@ -89,6 +88,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String resolveToken(HttpServletRequest request) {
+        String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7).trim();
+        }
+
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+
+        for (Cookie cookie : cookies) {
+            if (ACCESS_TOKEN_COOKIE.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+
+        return null;
     }
 
     private void rejectToken(HttpServletRequest request, String message) {

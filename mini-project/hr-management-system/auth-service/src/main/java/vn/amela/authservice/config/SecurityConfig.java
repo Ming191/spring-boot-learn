@@ -34,6 +34,10 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
+                    "/login",
+                    "/register",
+                    "/logout",
+                    "/auth-assets/**",
                     "/api/auth/register",
                     "/api/auth/login",
                     "/api/auth/refresh",
@@ -49,6 +53,7 @@ public class SecurityConfig {
             )
             .httpBasic(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
+            .logout(AbstractHttpConfigurer::disable)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(authenticationEntryPoint)
                 .accessDeniedHandler(accessDeniedHandler)
