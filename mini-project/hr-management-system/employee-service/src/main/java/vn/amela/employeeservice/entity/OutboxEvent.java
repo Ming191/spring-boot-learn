@@ -21,6 +21,9 @@ public class OutboxEvent {
     private String eventType;
     private String payload;
     private OutboxEventStatus status;
+    private Integer retryCount;
+    private String lastError;
+    private LocalDateTime nextRetryAt;
     private LocalDateTime createdAt;
     private LocalDateTime publishedAt;
 

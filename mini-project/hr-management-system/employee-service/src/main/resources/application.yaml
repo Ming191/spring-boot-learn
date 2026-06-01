@@ -10,6 +10,23 @@ spring:
     username: ${EMP_DB_USERNAME:root}
     password: ${EMP_DB_PASSWORD:root}
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        linger.ms: 5
+
+app:
+  outbox:
+    poll-delay-ms: 5000
+    retry-delay-seconds: 30
+    max-retries: 5
+
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: vn.amela.employeeservice.entity

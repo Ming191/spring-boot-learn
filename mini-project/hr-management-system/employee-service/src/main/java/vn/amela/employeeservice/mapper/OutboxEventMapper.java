@@ -14,5 +14,14 @@ public interface OutboxEventMapper {
 
     int markPublished(@Param("id") Long id);
 
-    int markFailed(@Param("id") Long id);
+    int markFailed(
+            @Param("id") Long id,
+            @Param("lastError") String lastError
+    );
+
+    int markRetry(
+            @Param("id") Long id,
+            @Param("lastError") String lastError,
+            @Param("retryDelaySeconds") long retryDelaySeconds
+    );
 }
