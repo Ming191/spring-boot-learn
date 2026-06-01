@@ -15,7 +15,7 @@
     </sql>
 
     <insert id="insert"
-            keyProperty="outboxEvent.id"
+            keyProperty="id"
             useGeneratedKeys="true"
     >
 
