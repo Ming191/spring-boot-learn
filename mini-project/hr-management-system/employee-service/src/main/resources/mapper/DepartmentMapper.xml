@@ -84,5 +84,14 @@
         WHERE name = #{name}
           AND id != #{id}
     </select>
-    
+
+    <select id="existsActiveById" resultType="java.lang.Boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM departments
+            WHERE id = #{id}
+              AND is_active = TRUE
+        )
+    </select>
+
 </mapper>

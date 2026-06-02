@@ -68,4 +68,6 @@ public interface EmployeeMapper {
             @Param("employeeId") Long employeeId,
             @Param("departmentId") Long departmentId
     );
+
+    boolean existsActiveByEmployeeId(@Param("employeeId") Long employeeId);
 }
