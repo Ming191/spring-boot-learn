@@ -2,12 +2,15 @@ package vn.amela.authservice.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import vn.amela.authservice.entity.User;
+import vn.amela.authservice.entity.enums.Role;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +22,7 @@ public class JwtService {
 
     private static final String ISSUER = "hr-auth-service";
     private static final String AUDIENCE = "hr-management-system";
+    private static final String JWT_ALGORITHM = "HS256";
     private SecretKey signingKey;
 
     @Value("${app.jwt.secret}")
@@ -45,17 +49,23 @@ public class JwtService {
             .audience().add(AUDIENCE).and()
             .expiration(expiry)
             .id(UUID.randomUUID().toString())
-            .signWith(getKey())
+            .signWith(getKey(), Jwts.SIG.HS256)
             .compact();
     }
 
     public Claims extractClaims(String token) {
-        return Jwts.parser()
+        Jws<Claims> claimsJws = Jwts.parser()
             .verifyWith(getKey())
             .requireIssuer(ISSUER)
+            .requireAudience(AUDIENCE)
             .build()
-            .parseSignedClaims(token)
-            .getPayload();
+            .parseSignedClaims(token);
+
+        if (!JWT_ALGORITHM.equals(claimsJws.getHeader().getAlgorithm())) {
+            throw new UnsupportedJwtException("Unsupported JWT algorithm");
+        }
+
+        return claimsJws.getPayload();
     }
 
     public Long extractId(String token) {
@@ -66,8 +76,9 @@ public class JwtService {
         return extractClaims(token).get("username", String.class);
     }
 
-    public String extractRole(String token) {
-        return extractClaims(token).get("role", String.class);
+    public Role extractRole(String token) {
+        String role = extractClaims(token).get("role", String.class);
+        return role == null ? null : Role.valueOf(role);
     }
 
     public Boolean isTokenValid(String token) {

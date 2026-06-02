@@ -2,9 +2,17 @@
 -- HR Management System — Database Schema
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS db_auth;
-CREATE DATABASE IF NOT EXISTS db_emp;
-CREATE DATABASE IF NOT EXISTS db_leave;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS db_auth
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS db_emp
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS db_leave
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
 
 -- ============================================================
 -- db_auth — Authentication & Authorization
@@ -43,12 +51,12 @@ CREATE INDEX idx_refresh_user_id         ON refresh_tokens (user_id);
 CREATE INDEX idx_refresh_expires_at      ON refresh_tokens (expires_at);
 
 INSERT INTO users (username, password, email, full_name, role) VALUES
-('hr_admin',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'hr@company.com',       'HR Admin',      'HR'),
-('hr_manager', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'hr2@company.com',      'HR Manager',    'HR'),
-('emp_nguyen', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'nguyen@company.com',   'Nguyễn Văn An', 'EMPLOYEE'),
-('emp_tran',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'tran@company.com',     'Trần Thị Bình', 'EMPLOYEE'),
-('emp_le',     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'le@company.com',       'Lê Minh Cường', 'EMPLOYEE'),
-('emp_pham',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'pham@company.com',     'Phạm Thị Dung', 'EMPLOYEE');
+('hr_admin',   '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'hr@company.com',       'HR Admin',      'HR'),
+('hr_manager', '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'hr2@company.com',      'HR Manager',    'HR'),
+('emp_nguyen', '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'nguyen@company.com',   'Nguyễn Văn An', 'EMPLOYEE'),
+('emp_tran',   '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'tran@company.com',     'Trần Thị Bình', 'EMPLOYEE'),
+('emp_le',     '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'le@company.com',       'Lê Minh Cường', 'EMPLOYEE'),
+('emp_pham',   '$2a$10$0SNsOtkJpNAKPWzG9SnHR.a5tAeyHIoiNx6X/6N0c6IJdO5bqJnIm', 'pham@company.com',     'Phạm Thị Dung', 'EMPLOYEE');
 
 
 -- ============================================================
@@ -91,13 +99,18 @@ CREATE TABLE IF NOT EXISTS outbox_events (
     aggregate_id    BIGINT          NOT NULL,
     event_type      VARCHAR(100)    NOT NULL,
     payload         JSON            NOT NULL,
-    status          ENUM('PENDING', 'PUBLISHED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+    status          ENUM('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+    processing_started_at DATETIME NULL,
+    retry_count     INT             NOT NULL DEFAULT 0,
+    last_error      TEXT            NULL,
+    next_retry_at   DATETIME        NULL,
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     published_at    DATETIME        NULL,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_outbox_emp_status_created_at ON outbox_events (status, created_at);
+CREATE INDEX idx_outbox_emp_poll ON outbox_events (status, next_retry_at, processing_started_at, created_at);
 
 CREATE INDEX idx_emp_status        ON employees (status);
 CREATE INDEX idx_emp_department    ON employees (department_id);
@@ -152,13 +165,18 @@ CREATE TABLE IF NOT EXISTS outbox_events (
      aggregate_id    BIGINT          NOT NULL,
      event_type      VARCHAR(100)    NOT NULL,
      payload         JSON            NOT NULL,
-     status          ENUM('PENDING', 'PUBLISHED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+     status          ENUM('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+     processing_started_at DATETIME NULL,
+     retry_count     INT             NOT NULL DEFAULT 0,
+     last_error      TEXT            NULL,
+     next_retry_at   DATETIME        NULL,
      created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
      published_at    DATETIME        NULL,
      PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_outbox_leave_status_created_at ON outbox_events (status, created_at);
+CREATE INDEX idx_outbox_leave_poll ON outbox_events (status, next_retry_at, processing_started_at, created_at);
 
 CREATE INDEX idx_leave_employee_id  ON leave_requests (employee_id);
 CREATE INDEX idx_leave_status       ON leave_requests (status);

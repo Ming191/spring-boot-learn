@@ -1,9 +1,9 @@
 package vn.amela.employeeservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.json.JsonMapper;
 import vn.amela.employeeservice.client.LeaveServiceClient;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
 import vn.amela.employeeservice.dto.request.EmployeeFilterRequest;
@@ -16,7 +16,6 @@ import vn.amela.employeeservice.entity.Employee;
 import vn.amela.employeeservice.entity.EmployeeCreatedPayload;
 import vn.amela.employeeservice.entity.OutboxEvent;
 import vn.amela.employeeservice.entity.enums.EmployeeStatus;
-import vn.amela.employeeservice.entity.enums.OutboxEventStatus;
 import vn.amela.employeeservice.exception.BusinessException;
 import vn.amela.employeeservice.exception.DuplicateResourceException;
 import vn.amela.employeeservice.exception.ResourceNotFoundException;
@@ -24,30 +23,30 @@ import vn.amela.employeeservice.mapper.DepartmentMapper;
 import vn.amela.employeeservice.mapper.EmployeeMapper;
 import vn.amela.employeeservice.mapper.OutboxEventMapper;
 import vn.amela.employeeservice.service.EmployeeService;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class EmployeeServiceImpl implements EmployeeService {
 
     private static final String EMPLOYEE_CREATED_EVENT = "employee.created";
+    private static final String EMPLOYEE_AGGREGATE_TYPE = "Employee";
     private static final String EMPLOYEE_STATUS_CHANGED_EVENT = "employee.status.changed";
     private static final String EMPLOYEE_DEACTIVATED_EVENT = "employee.deactivated";
-    private static final String EMPLOYEE_AGGREGATE_TYPE = "Employee";
-    private static final String LEGACY_EMPLOYEE_AGGREGATE_TYPE = "EMPLOYEE";
 
     protected final EmployeeMapper employeeMapper;
     protected final DepartmentMapper departmentMapper;
-    protected final OutboxEventMapper outboxEventMapper;
-    protected final JsonMapper objectMapper;
     protected final LeaveServiceClient leaveServiceClient;
+    protected final OutboxEventMapper outboxEventMapper;
+    protected final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -62,8 +61,12 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         Employee employee = buildEmployee(request, employeeCode, email);
 
-        employeeMapper.insert(employee);
-        saveEmployeeCreatedEvent(employee);
+        try {
+            employeeMapper.insert(employee);
+            saveEmployeeCreatedEvent(employee);
+        } catch (DuplicateKeyException e) {
+            throw new DuplicateResourceException("Employee with the same code, email, or auth user already exists");
+        }
 
         Employee createdEmployee = loadCreatedEmployee(employee.getId());
 
@@ -72,7 +75,16 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public EmployeeResponse getById(Long id, Long requesterId, String requesterRole) {
-        return null;
+        Employee employee = employeeMapper.findById(id);
+        if (employee == null) {
+            throw new ResourceNotFoundException("Employee not found");
+        }
+
+        if (!"HR".equalsIgnoreCase(requesterRole) && !Objects.equals(requesterId, employee.getAuthUserId())) {
+            throw new BusinessException("You are not authorized to view this employee");
+        }
+
+        return toResponse(employee, findDepartmentName(employee.getDepartmentId()));
     }
 
     @Override
@@ -132,40 +144,54 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .build();
     }
 
+    private EmployeeFilterRequest defaultFilter() {
+        return new EmployeeFilterRequest(null, null, null, null, null, null, 0, 10, null, null);
+    }
+
     @Override
     @Transactional
     public EmployeeResponse updateByHr(Long id, UpdateEmployeeRequest request) {
+        String fullName = normalizeRequiredText(request.fullName(), "Full name");
+        String email = normalizeEmail(request.email());
+        String phone = normalizeRequiredText(request.phone(), "Phone");
+        String position = normalizeRequiredText(request.position(), "Position");
+
         Employee currentEmployee = employeeMapper.findById(id);
         if (currentEmployee == null) {
             throw new ResourceNotFoundException("Employee not found");
         }
 
-        String email = request.email() != null ? normalizeEmail(request.email()) : null;
-        if (email != null) {
-            Employee existing = employeeMapper.findByEmail(email);
-            if (existing != null && !existing.getId().equals(id)) {
-                throw new DuplicateResourceException("Email is already in use");
-            }
-        }
         Department department = requireActiveDepartment(request.departmentId());
+
+        if (request.salary() == null) {
+            throw new BusinessException("Salary is required");
+        }
+
+        if (request.startDate() == null) {
+            throw new BusinessException("Start date is required");
+        }
 
         boolean isDepartmentChanged = currentEmployee.getDepartmentId() == null ||
                 !currentEmployee.getDepartmentId().equals(request.departmentId());
         boolean isSalaryChanged = currentEmployee.getSalary() == null ||
                 currentEmployee.getSalary().compareTo(request.salary()) != 0;
 
-        currentEmployee.setFullName(request.fullName());
+        currentEmployee.setFullName(fullName);
         currentEmployee.setEmail(email);
-        currentEmployee.setPhone(request.phone());
-        currentEmployee.setPosition(request.position());
+        currentEmployee.setPhone(phone);
+        currentEmployee.setPosition(position);
         currentEmployee.setDepartmentId(request.departmentId());
         currentEmployee.setSalary(request.salary());
         currentEmployee.setStartDate(request.startDate());
 
-        employeeMapper.updateByHr(currentEmployee);
+        try {
+            employeeMapper.updateByHr(currentEmployee);
+        } catch (DuplicateKeyException e) {
+            throw new DuplicateResourceException("Email already exists: " + email);
+        }
 
         if (isDepartmentChanged || isSalaryChanged) {
-            saveLegacyEmployeeEvent(EMPLOYEE_STATUS_CHANGED_EVENT, currentEmployee);
+            saveEmployeeStatusChangedEvent(currentEmployee);
         }
 
         return toResponse(currentEmployee, department.getName());
@@ -179,20 +205,21 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new ResourceNotFoundException("Employee not found");
         }
 
-        if (!requesterId.equals(currentEmployee.getAuthUserId())) {
+        if (!Objects.equals(requesterId, currentEmployee.getAuthUserId())) {
             throw new BusinessException("You are not authorized to update this employee's contact");
         }
 
         String email = normalizeEmail(request.email());
-        Employee existing = employeeMapper.findByEmail(email);
-        if (existing != null && !existing.getId().equals(id)) {
-            throw new DuplicateResourceException("Email is already in use");
+        String phone = normalizeRequiredText(request.phone(), "Phone");
+
+        try {
+            employeeMapper.updateContact(id, email, phone);
+        } catch (DuplicateKeyException e) {
+            throw new DuplicateResourceException("Email already exists: " + email);
         }
 
-        employeeMapper.updateContact(id, email, request.phone());
-
         currentEmployee.setEmail(email);
-        currentEmployee.setPhone(request.phone());
+        currentEmployee.setPhone(phone);
 
         Department department = currentEmployee.getDepartmentId() != null
                 ? departmentMapper.findById(currentEmployee.getDepartmentId())
@@ -218,12 +245,14 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new BusinessException("Cannot deactivate employee with pending leaves");
         }
 
-        employeeMapper.deactivate(id);
-        saveLegacyEmployeeEvent(EMPLOYEE_DEACTIVATED_EVENT, currentEmployee);
-    }
+        int updatedRows = employeeMapper.deactivate(id);
+        if (updatedRows == 0) {
+            throw new BusinessException("Employee could not be deactivated");
+        }
 
-    private EmployeeFilterRequest defaultFilter() {
-        return new EmployeeFilterRequest(null, null, null, null, null, null, 0, 10, null, null);
+        currentEmployee.setStatus(EmployeeStatus.INACTIVE);
+
+        saveEmployeeDeactivatedEvent(currentEmployee);
     }
 
     private String normalizeEmployeeCode(String employeeCode) {
@@ -272,24 +301,30 @@ public class EmployeeServiceImpl implements EmployeeService {
                 Instant.now()
         );
 
-        OutboxEvent event = OutboxEvent.builder()
-                .aggregateType(EMPLOYEE_AGGREGATE_TYPE)
-                .aggregateId(employee.getId())
-                .eventType(EMPLOYEE_CREATED_EVENT)
-                .payload(objectMapper.writeValueAsString(payload))
-                .build();
-
-        outboxEventMapper.insert(event);
+        saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_CREATED_EVENT, payload);
     }
 
-    private void saveLegacyEmployeeEvent(String eventType, Employee employee) {
+    private void saveEmployeeStatusChangedEvent(Employee employee) {
+        saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_STATUS_CHANGED_EVENT, employee);
+    }
+
+    private void saveEmployeeDeactivatedEvent(Employee employee) {
+        saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_DEACTIVATED_EVENT, employee);
+    }
+
+    private void saveOutboxEvent(String aggregateType, Long aggregateId, String eventType, Object payloadSource) {
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(payloadSource);
+        } catch (Exception e) {
+            throw new BusinessException("Failed to serialize outbox event payload", e);
+        }
+
         OutboxEvent event = OutboxEvent.builder()
-                .aggregateType(LEGACY_EMPLOYEE_AGGREGATE_TYPE)
-                .aggregateId(employee.getId())
+                .aggregateType(aggregateType)
+                .aggregateId(aggregateId)
                 .eventType(eventType)
-                .payload(objectMapper.writeValueAsString(employee))
-                .status(OutboxEventStatus.PENDING)
-                .createdAt(LocalDateTime.now())
+                .payload(payload)
                 .build();
 
         outboxEventMapper.insert(event);

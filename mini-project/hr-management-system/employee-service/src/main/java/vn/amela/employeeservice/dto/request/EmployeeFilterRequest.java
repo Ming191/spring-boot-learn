@@ -7,7 +7,7 @@ import vn.amela.employeeservice.entity.enums.EmployeeStatus;
 import java.time.LocalDate;
 
 @Builder
-public record EmployeeFilterRequest (
+public record EmployeeFilterRequest(
         String likeName,
         Long departmentId,
         String position,
@@ -15,10 +15,18 @@ public record EmployeeFilterRequest (
         LocalDate startDateFrom,
         LocalDate startDateTo,
         @Min(value = 0, message = "Page must be greater than or equal to 0")
-        int page,
+        Integer page,
         @Min(value = 1, message = "Size must be greater than or equal to 1")
-        int size,
+        Integer size,
         String sortBy,
         String sortDirection
 ) {
+    public EmployeeFilterRequest {
+        if (page == null || page < 0) {
+            page = 0;
+        }
+        if (size == null || size <= 0) {
+            size = 10;
+        }
+    }
 }

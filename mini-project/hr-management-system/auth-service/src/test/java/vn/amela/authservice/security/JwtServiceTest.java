@@ -25,10 +25,16 @@ class JwtServiceTest {
 
         String token = jwtService.generateAccessToken(user);
 
+        assertThat(Jwts.parser()
+            .verifyWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+            .build()
+            .parseSignedClaims(token)
+            .getHeader()
+            .getAlgorithm()).isEqualTo("HS256");
         assertThat(jwtService.isTokenValid(token)).isTrue();
         assertThat(jwtService.extractId(token)).isEqualTo(1L);
         assertThat(jwtService.extractUsername(token)).isEqualTo("emp");
-        assertThat(jwtService.extractRole(token)).isEqualTo("EMPLOYEE");
+        assertThat(jwtService.extractRole(token)).isEqualTo(Role.EMPLOYEE);
         assertThat(jwtService.getExpirationSeconds()).isEqualTo(900L);
     }
 
@@ -67,8 +73,29 @@ class JwtServiceTest {
             .claim("role", "EMPLOYEE")
             .issuer("another-service")
             .issuedAt(now)
+            .audience().add("hr-management-system").and()
             .expiration(expiry)
-            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256)
+            .compact();
+
+        assertThat(jwtService.isTokenValid(token)).isFalse();
+    }
+
+    @Test
+    @DisplayName("marks token from another audience as invalid")
+    void rejectsWrongAudience() {
+        JwtService jwtService = jwtService(900_000L);
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + 900_000L);
+        String token = Jwts.builder()
+            .subject("1")
+            .claim("username", "emp")
+            .claim("role", "EMPLOYEE")
+            .issuer("hr-auth-service")
+            .issuedAt(now)
+            .audience().add("other-system").and()
+            .expiration(expiry)
+            .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256)
             .compact();
 
         assertThat(jwtService.isTokenValid(token)).isFalse();

@@ -1,5 +1,6 @@
 dependencies {
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.1'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.springframework.boot:spring-boot-starter-kafka'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     runtimeOnly 'com.mysql:mysql-connector-j'
@@ -12,4 +13,6 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
     systemProperty 'verify.mysql', System.getProperty('verify.mysql')
+    systemProperty 'eureka.client.enabled', 'false'
+    systemProperty 'spring.cloud.discovery.enabled', 'false'
 }
