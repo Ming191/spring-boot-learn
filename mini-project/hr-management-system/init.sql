@@ -165,7 +165,8 @@ CREATE TABLE IF NOT EXISTS outbox_events (
      aggregate_id    BIGINT          NOT NULL,
      event_type      VARCHAR(100)    NOT NULL,
      payload         JSON            NOT NULL,
-     status          ENUM('PENDING', 'PUBLISHED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+     status          ENUM('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+     processing_started_at DATETIME NULL,
      retry_count     INT             NOT NULL DEFAULT 0,
      last_error      TEXT            NULL,
      next_retry_at   DATETIME        NULL,
@@ -175,7 +176,7 @@ CREATE TABLE IF NOT EXISTS outbox_events (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_outbox_leave_status_created_at ON outbox_events (status, created_at);
-CREATE INDEX idx_outbox_leave_retry ON outbox_events (status, next_retry_at, retry_count, created_at);
+CREATE INDEX idx_outbox_leave_poll ON outbox_events (status, next_retry_at, processing_started_at, created_at);
 
 CREATE INDEX idx_leave_employee_id  ON leave_requests (employee_id);
 CREATE INDEX idx_leave_status       ON leave_requests (status);
