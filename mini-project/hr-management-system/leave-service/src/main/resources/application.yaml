@@ -15,6 +15,19 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        linger.ms: 5
+
+app:
+  outbox:
+    poll-delay-ms: 5000
+    retry-delay-seconds: 30
+    processing-timeout-seconds: 300
+    publish-timeout-ms: 10000
+    max-retries: 5
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
