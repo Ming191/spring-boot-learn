@@ -78,16 +78,6 @@ public class OutboxPoller {
             }
 
             log.info(
-        try {
-            kafkaTemplate.send(topic, key, payload).get(10, TimeUnit.SECONDS);
-
-            int updatedRows = outboxEventMapper.markPublished(event.getId());
-            if (updatedRows == 0) {
-                log.warn("Outbox event id={} could not be marked as published", event.getId());
-                return;
-            }
-
-            log.info(
                     "Published outbox event id={}, topic={}, aggregateId={}",
                     event.getId(),
                     topic,
