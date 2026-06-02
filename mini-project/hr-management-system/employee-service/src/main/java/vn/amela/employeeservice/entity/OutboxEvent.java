@@ -23,6 +23,7 @@ public class OutboxEvent {
     private OutboxEventStatus status;
     private Integer retryCount;
     private String lastError;
+    private LocalDateTime processingStartedAt;
     private LocalDateTime nextRetryAt;
     private LocalDateTime createdAt;
     private LocalDateTime publishedAt;

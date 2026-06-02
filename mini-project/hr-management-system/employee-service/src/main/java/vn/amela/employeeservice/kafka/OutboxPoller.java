@@ -1,9 +1,16 @@
 package vn.amela.employeeservice.kafka;
 
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,10 +34,29 @@ public class OutboxPoller {
     @Value("${app.outbox.retry-delay-seconds:30}")
     private long retryDelaySeconds;
 
+    @Value("${app.outbox.processing-timeout-seconds:300}")
+    private long processingTimeoutSeconds;
+
+    @Value("${app.outbox.publish-timeout-ms:10000}")
+    private long publishTimeoutMs;
+
     @Scheduled(fixedDelayString = "${app.outbox.poll-delay-ms:5000}")
     public void pollAndPublish() {
-        List<OutboxEvent> pendingEvents = outboxEventMapper.findPending(BATCH_SIZE);
-        for (OutboxEvent event : pendingEvents) {
+        LocalDateTime processingTimeoutAt = LocalDateTime.now().minusSeconds(processingTimeoutSeconds);
+        List<Long> pendingEventIds = outboxEventMapper.findPendingIds(BATCH_SIZE, processingTimeoutAt);
+        for (Long eventId : pendingEventIds) {
+            if (outboxEventMapper.claimPending(eventId, processingTimeoutAt) == 0) {
+                continue;
+            }
+
+            OutboxEvent event = outboxEventMapper.findById(eventId);
+            if (event == null) {
+                LocalDateTime nextRetryAt = LocalDateTime.now().plusSeconds(retryDelaySeconds);
+                outboxEventMapper.markRetry(eventId, "Claimed outbox event could not be loaded", nextRetryAt);
+                log.warn("Claimed outbox event id={} could not be loaded and was released for retry", eventId);
+                continue;
+            }
+
             publish(event);
         }
     }
@@ -41,7 +67,9 @@ public class OutboxPoller {
         String payload = event.getPayload();
 
         try {
-            kafkaTemplate.send(topic, key, payload).get();
+            ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, payload);
+            addDeduplicationHeaders(record, event);
+            kafkaTemplate.send(record).get(publishTimeoutMs, TimeUnit.MILLISECONDS);
 
             int updatedRows = outboxEventMapper.markPublished(event.getId());
             if (updatedRows == 0) {
@@ -55,7 +83,17 @@ public class OutboxPoller {
                     topic,
                     event.getAggregateId()
             );
-        } catch (Exception ex) {
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            log.error(
+                    "Interrupted while publishing outbox event id={}, topic={}, aggregateId={}",
+                    event.getId(),
+                    topic,
+                    event.getAggregateId(),
+                    ex
+            );
+            handlePublishFailure(event, ex);
+        } catch (ExecutionException | TimeoutException ex) {
             log.error(
                     "Failed to publish outbox event id={}, topic={}, aggregateId={}",
                     event.getId(),
@@ -78,7 +116,8 @@ public class OutboxPoller {
             return;
         }
 
-        outboxEventMapper.markRetry(event.getId(), lastError, retryDelaySeconds);
+        LocalDateTime nextRetryAt = LocalDateTime.now().plusSeconds(retryDelaySeconds);
+        outboxEventMapper.markRetry(event.getId(), lastError, nextRetryAt);
         log.info(
                 "Outbox event id={} scheduled for retry attempt={} after {}s",
                 event.getId(),
@@ -92,5 +131,11 @@ public class OutboxPoller {
             return message;
         }
         return message.substring(0, MAX_ERROR_LENGTH);
+    }
+
+    private void addDeduplicationHeaders(ProducerRecord<String, String> record, OutboxEvent event) {
+        byte[] eventId = String.valueOf(event.getId()).getBytes(StandardCharsets.UTF_8);
+        record.headers().add(new RecordHeader("eventId", eventId));
+        record.headers().add(new RecordHeader("outboxId", eventId));
     }
 }

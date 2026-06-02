@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.amela.employeeservice.entity.OutboxEvent;
 import vn.amela.employeeservice.entity.enums.OutboxEventStatus;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
@@ -33,23 +35,27 @@ class OutboxEventMapperMysqlVerificationTests {
 
         assertThat(event.getId()).isNotNull();
 
-        OutboxEvent pendingEvent = outboxEventMapper.findPending(10)
-                .stream()
-                .filter(found -> found.getId().equals(event.getId()))
-                .findFirst()
-                .orElseThrow();
+        LocalDateTime processingTimeoutAt = LocalDateTime.now().minusMinutes(1);
 
-        assertThat(pendingEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+        assertThat(outboxEventMapper.findPendingIds(10, processingTimeoutAt))
+                .contains(event.getId());
+
+        assertThat(outboxEventMapper.claimPending(event.getId(), processingTimeoutAt)).isEqualTo(1);
+
+        OutboxEvent pendingEvent = outboxEventMapper.findById(event.getId());
+
+        assertThat(pendingEvent.getStatus()).isEqualTo(OutboxEventStatus.PROCESSING);
+        assertThat(pendingEvent.getProcessingStartedAt()).isNotNull();
         assertThat(pendingEvent.getPublishedAt()).isNull();
 
         assertThat(outboxEventMapper.markPublished(event.getId())).isEqualTo(1);
 
-        OutboxEvent publishedEvent = outboxEventMapper.findPending(10)
-                .stream()
-                .filter(found -> found.getId().equals(event.getId()))
-                .findFirst()
-                .orElse(null);
+        OutboxEvent publishedEvent = outboxEventMapper.findById(event.getId());
 
-        assertThat(publishedEvent).isNull();
+        assertThat(publishedEvent.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
+        assertThat(publishedEvent.getPublishedAt()).isNotNull();
+        assertThat(publishedEvent.getProcessingStartedAt()).isNull();
+        assertThat(outboxEventMapper.findPendingIds(10, processingTimeoutAt))
+                .doesNotContain(event.getId());
     }
 }

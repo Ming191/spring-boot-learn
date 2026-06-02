@@ -25,6 +25,8 @@ app:
   outbox:
     poll-delay-ms: 5000
     retry-delay-seconds: 30
+    processing-timeout-seconds: 300
+    publish-timeout-ms: 10000
     max-retries: 5
 
 mybatis:

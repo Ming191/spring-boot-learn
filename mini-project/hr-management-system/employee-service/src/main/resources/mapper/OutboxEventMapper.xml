@@ -12,6 +12,7 @@
         status,
         retry_count,
         last_error,
+        processing_started_at,
         next_retry_at,
         created_at,
         published_at
@@ -45,9 +46,10 @@
         SET status = 'PUBLISHED',
             published_at = NOW(),
             last_error = NULL,
+            processing_started_at = NULL,
             next_retry_at = NULL
         WHERE id = #{id}
-          AND status = 'PENDING'
+          AND status = 'PROCESSING'
 
     </update>
     <update id="markFailed">
@@ -56,30 +58,53 @@
         SET status = 'FAILED',
             retry_count = retry_count + 1,
             last_error = #{lastError},
+            processing_started_at = NULL,
             next_retry_at = NULL
         WHERE id = #{id}
-          AND status = 'PENDING'
+          AND status = 'PROCESSING'
 
     </update>
 
     <update id="markRetry">
 
         UPDATE outbox_events
-        SET retry_count = retry_count + 1,
+        SET status = 'PENDING',
+            retry_count = retry_count + 1,
             last_error = #{lastError},
-            next_retry_at = DATE_ADD(NOW(), INTERVAL #{retryDelaySeconds} SECOND)
+            processing_started_at = NULL,
+            next_retry_at = #{nextRetryAt}
         WHERE id = #{id}
-          AND status = 'PENDING'
+          AND status = 'PROCESSING'
 
     </update>
 
-    <select id="findPending" resultType="vn.amela.employeeservice.entity.OutboxEvent">
+    <select id="findPendingIds" resultType="java.lang.Long">
+
+        SELECT id FROM outbox_events
+        WHERE (status = 'PENDING' AND (next_retry_at IS NULL OR next_retry_at &lt;= NOW()))
+           OR (status = 'PROCESSING' AND processing_started_at &lt;= #{processingTimeoutAt})
+        ORDER BY created_at, id
+        LIMIT #{limit}
+
+    </select>
+
+    <update id="claimPending">
+
+        UPDATE outbox_events
+        SET status = 'PROCESSING',
+            processing_started_at = NOW()
+        WHERE id = #{id}
+          AND (
+              (status = 'PENDING' AND (next_retry_at IS NULL OR next_retry_at &lt;= NOW()))
+              OR (status = 'PROCESSING' AND processing_started_at &lt;= #{processingTimeoutAt})
+          )
+
+    </update>
+
+    <select id="findById" resultType="vn.amela.employeeservice.entity.OutboxEvent">
 
         SELECT <include refid="outboxEventColumns"/> FROM outbox_events
-        WHERE status = 'PENDING'
-          AND (next_retry_at IS NULL OR next_retry_at &lt;= NOW())
-        ORDER BY created_at
-        LIMIT #{limit}
+        WHERE id = #{id}
 
     </select>
 
