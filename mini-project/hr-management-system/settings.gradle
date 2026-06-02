@@ -6,5 +6,4 @@ include 'employee-service'
 include 'auth-service'
 //include 'web-service'
 //include 'leave-service'
-//include 'notification-service'
-
+include 'notification-service'

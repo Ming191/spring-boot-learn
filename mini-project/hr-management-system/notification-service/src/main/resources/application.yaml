@@ -1,0 +1,77 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: notification-service
+
+  datasource:
+    url: ${NOTIFICATION_DB_URL:jdbc:mysql://localhost:3306/db_notification}
+    username: ${NOTIFICATION_DB_USERNAME:root}
+    password: ${NOTIFICATION_DB_PASSWORD:root}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: notification-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: vn.amela.notificationservice.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+notification:
+  templates:
+    "[employee.created]":
+      recipient-type: SYSTEM
+      title: "Nhân viên mới"
+      message: "Nhân viên {fullName} đã được tạo"
+    "[employee.status.changed]":
+      recipient-type: SYSTEM
+      title: "Thông tin nhân viên thay đổi"
+      message: "Nhân viên {fullName} thay đổi phòng ban hoặc lương"
+    "[employee.deactivated]":
+      recipient-type: SYSTEM
+      title: "Nhân viên nghỉ việc"
+      message: "Nhân viên {fullName} đã bị deactivate"
+    "[leave.requested]":
+      recipient-type: HR
+      title: "Đơn nghỉ mới"
+      message: "{employeeName} tạo đơn nghỉ {leaveType} từ {fromDate} đến {toDate}"
+    "[leave.approved]":
+      recipient-type: EMPLOYEE
+      recipient-id-field: employeeId
+      title: "Đơn nghỉ được duyệt"
+      message: "Đơn nghỉ #{aggregateId} đã được duyệt"
+    "[leave.rejected]":
+      recipient-type: EMPLOYEE
+      recipient-id-field: employeeId
+      title: "Đơn nghỉ bị từ chối"
+      message: "Đơn nghỉ #{aggregateId} bị từ chối. Lý do: {reviewerNote}"
+    "[leave.cancelled]":
+      recipient-type: SYSTEM
+      title: "Đơn nghỉ bị hủy"
+      message: "{employeeName} đã hủy đơn nghỉ #{aggregateId}"
+    default:
+      recipient-type: SYSTEM
+      title: "Sự kiện hệ thống"
+      message: "Nhận Kafka event {eventType}"

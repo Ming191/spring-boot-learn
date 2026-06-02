@@ -5,6 +5,7 @@
 CREATE DATABASE IF NOT EXISTS db_auth;
 CREATE DATABASE IF NOT EXISTS db_emp;
 CREATE DATABASE IF NOT EXISTS db_leave;
+CREATE DATABASE IF NOT EXISTS db_notification;
 
 -- ============================================================
 -- db_auth — Authentication & Authorization
@@ -172,3 +173,29 @@ INSERT INTO leave_requests (employee_id, employee_code, employee_name, departmen
 (3, 'EMP003', 'Lê Minh Cường', 'Marketing',   'PERSONAL', '2026-06-10', '2026-06-10', 1, 'Việc gia đình',              'PENDING'),
 (1, 'EMP001', 'Nguyễn Văn An', 'Engineering', 'ANNUAL',   '2026-07-01', '2026-07-05', 5, 'Đi du lịch cùng gia đình',  'PENDING'),
 (4, 'EMP004', 'Phạm Thị Dung', 'Finance',     'SICK',     '2026-05-15', '2026-05-15', 1, 'Khám sức khỏe định kỳ',     'REJECTED');
+
+
+-- ============================================================
+-- db_notification — In-app Notifications
+-- ============================================================
+USE db_notification;
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id              BIGINT          NOT NULL AUTO_INCREMENT,
+    event_id        VARCHAR(100)    NOT NULL,
+    event_type      VARCHAR(100)    NOT NULL,
+    aggregate_type  VARCHAR(100)    NULL,
+    aggregate_id    BIGINT          NULL,
+    recipient_type  VARCHAR(50)     NOT NULL,
+    recipient_id    BIGINT          NULL,
+    title           VARCHAR(255)    NOT NULL,
+    message         TEXT            NOT NULL,
+    payload         JSON            NOT NULL,
+    is_read         TINYINT(1)      NOT NULL DEFAULT 0,
+    created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE UNIQUE INDEX uk_notifications_event_id ON notifications (event_id);
+CREATE INDEX idx_notifications_recipient_read ON notifications (recipient_type, recipient_id, is_read);
+CREATE INDEX idx_notifications_created_at ON notifications (created_at);
