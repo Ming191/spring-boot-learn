@@ -33,7 +33,7 @@ import java.time.temporal.ChronoUnit;
 public class LeaveServiceImpl implements LeaveService {
 
     private static final String LEAVE_REQUESTED_EVENT = "leave.requested";
-    private static final String LEAVE_AGGREGATE_TYPE = "LEAVE_REQUEST";
+    private static final String LEAVE_AGGREGATE_TYPE = "LeaveRequest";
 
 
     private final LeaveMapper leaveMapper;
