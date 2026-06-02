@@ -16,6 +16,7 @@ import vn.amela.employeeservice.entity.Employee;
 import vn.amela.employeeservice.entity.EmployeeCreatedPayload;
 import vn.amela.employeeservice.entity.OutboxEvent;
 import vn.amela.employeeservice.entity.enums.EmployeeStatus;
+import vn.amela.employeeservice.entity.payload.EmployeeUpdatePayload;
 import vn.amela.employeeservice.exception.BusinessException;
 import vn.amela.employeeservice.exception.DuplicateResourceException;
 import vn.amela.employeeservice.exception.ResourceNotFoundException;
@@ -175,6 +176,8 @@ public class EmployeeServiceImpl implements EmployeeService {
                 !currentEmployee.getDepartmentId().equals(request.departmentId());
         boolean isSalaryChanged = currentEmployee.getSalary() == null ||
                 currentEmployee.getSalary().compareTo(request.salary()) != 0;
+        Long oldDepartmentId = currentEmployee.getDepartmentId();
+        var oldSalary = currentEmployee.getSalary();
 
         currentEmployee.setFullName(fullName);
         currentEmployee.setEmail(email);
@@ -191,7 +194,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
 
         if (isDepartmentChanged || isSalaryChanged) {
-            saveEmployeeStatusChangedEvent(currentEmployee);
+            saveEmployeeStatusChangedEvent(currentEmployee, oldDepartmentId, oldSalary, request);
         }
 
         return toResponse(currentEmployee, department.getName());
@@ -304,12 +307,49 @@ public class EmployeeServiceImpl implements EmployeeService {
         saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_CREATED_EVENT, payload);
     }
 
-    private void saveEmployeeStatusChangedEvent(Employee employee) {
-        saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_STATUS_CHANGED_EVENT, employee);
+    private void saveEmployeeStatusChangedEvent(
+            Employee employee,
+            Long oldDepartmentId,
+            java.math.BigDecimal oldSalary,
+            UpdateEmployeeRequest request
+    ) {
+        EmployeeUpdatePayload payload = new EmployeeUpdatePayload(
+                EMPLOYEE_STATUS_CHANGED_EVENT,
+                EMPLOYEE_AGGREGATE_TYPE,
+                employee.getId(),
+                employee.getEmployeeCode(),
+                employee.getFullName(),
+                employee.getEmail(),
+                oldDepartmentId,
+                request.departmentId(),
+                employee.getPosition(),
+                oldSalary,
+                request.salary(),
+                employee.getStatus().name(),
+                Instant.now()
+        );
+
+        saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_STATUS_CHANGED_EVENT, payload);
     }
 
     private void saveEmployeeDeactivatedEvent(Employee employee) {
-        saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_DEACTIVATED_EVENT, employee);
+        EmployeeUpdatePayload payload = new EmployeeUpdatePayload(
+                EMPLOYEE_DEACTIVATED_EVENT,
+                EMPLOYEE_AGGREGATE_TYPE,
+                employee.getId(),
+                employee.getEmployeeCode(),
+                employee.getFullName(),
+                employee.getEmail(),
+                employee.getDepartmentId(),
+                employee.getDepartmentId(),
+                employee.getPosition(),
+                employee.getSalary(),
+                employee.getSalary(),
+                employee.getStatus().name(),
+                Instant.now()
+        );
+
+        saveOutboxEvent(EMPLOYEE_AGGREGATE_TYPE, employee.getId(), EMPLOYEE_DEACTIVATED_EVENT, payload);
     }
 
     private void saveOutboxEvent(String aggregateType, Long aggregateId, String eventType, Object payloadSource) {
