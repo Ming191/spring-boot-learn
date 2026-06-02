@@ -19,8 +19,6 @@ public record LeaveRequestedPayload(
         LocalDate toDate,
         int totalDays,
         LeaveStatus status,
-        Long reviewedBy,
-        String reviewerNote,
         Instant timestamp
 ) {
 }
