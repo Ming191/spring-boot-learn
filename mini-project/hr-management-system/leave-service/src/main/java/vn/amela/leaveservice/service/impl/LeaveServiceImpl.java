@@ -27,6 +27,8 @@ import vn.amela.leaveservice.service.LeaveService;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +36,21 @@ public class LeaveServiceImpl implements LeaveService {
 
     private static final String LEAVE_REQUESTED_EVENT = "leave.requested";
     private static final String LEAVE_AGGREGATE_TYPE = "LEAVE_REQUEST";
+    private static final String DEFAULT_SORT_BY = "createdAt";
+    private static final String DEFAULT_SORT_DIRECTION = "desc";
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "employeeId",
+            "employeeCode",
+            "employeeName",
+            "departmentName",
+            "leaveType",
+            "fromDate",
+            "toDate",
+            "totalDays",
+            "status",
+            "reviewedAt",
+            "createdAt"
+    );
 
 
     private final LeaveMapper leaveMapper;
@@ -87,7 +104,23 @@ public class LeaveServiceImpl implements LeaveService {
 
     @Override
     public PageResponse<LeaveResponse> search(LeaveFilterRequest filter, CurrentUser user) {
-        return null;
+        requireHrRole(user);
+
+        LeaveFilterRequest normalizedFilter = normalizeFilter(filter);
+        List<LeaveResponse> items = leaveMapper.search(normalizedFilter)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+        long totalElements = leaveMapper.countByFilter(normalizedFilter);
+        int totalPages = (int) Math.ceil((double) totalElements / normalizedFilter.size());
+
+        return PageResponse.<LeaveResponse>builder()
+                .items(items)
+                .page(normalizedFilter.page())
+                .size(normalizedFilter.size())
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
     }
 
     @Override
@@ -119,6 +152,60 @@ public class LeaveServiceImpl implements LeaveService {
         if (!user.isHr() && !user.isEmployee()) {
             throw new ForbiddenActionException("Only HR or Employee can create leave requests");
         }
+    }
+
+    private void requireHrRole(CurrentUser user) {
+        if (user == null || !user.isHr()) {
+            throw new ForbiddenActionException("Only HR can search leave requests");
+        }
+    }
+
+    private LeaveFilterRequest normalizeFilter(LeaveFilterRequest filter) {
+        LeaveFilterRequest currentFilter = filter == null
+                ? LeaveFilterRequest.builder().build()
+                : filter;
+
+        if (currentFilter.fromDate() != null
+                && currentFilter.toDate() != null
+                && currentFilter.toDate().isBefore(currentFilter.fromDate())) {
+            throw new BusinessException("To date must be greater than or equal to from date");
+        }
+
+        return LeaveFilterRequest.builder()
+                .employeeId(currentFilter.employeeId())
+                .status(currentFilter.status())
+                .leaveType(currentFilter.leaveType())
+                .fromDate(currentFilter.fromDate())
+                .toDate(currentFilter.toDate())
+                .departmentName(normalizeOptionalText(currentFilter.departmentName()))
+                .page(currentFilter.page())
+                .size(currentFilter.size())
+                .sortBy(normalizeSortBy(currentFilter.sortBy()))
+                .sortDirection(normalizeSortDirection(currentFilter.sortDirection()))
+                .build();
+    }
+
+    private String normalizeSortBy(String sortBy) {
+        String normalizedSortBy = normalizeOptionalText(sortBy);
+        if (normalizedSortBy == null || !ALLOWED_SORT_FIELDS.contains(normalizedSortBy)) {
+            return DEFAULT_SORT_BY;
+        }
+        return normalizedSortBy;
+    }
+
+    private String normalizeSortDirection(String sortDirection) {
+        String normalizedSortDirection = normalizeOptionalText(sortDirection);
+        if (normalizedSortDirection == null) {
+            return DEFAULT_SORT_DIRECTION;
+        }
+        return "asc".equalsIgnoreCase(normalizedSortDirection) ? "asc" : DEFAULT_SORT_DIRECTION;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private void saveLeaveRequestedEvent(LeaveRequest leaveRequest) {
