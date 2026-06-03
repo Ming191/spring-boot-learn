@@ -17,6 +17,7 @@ import vn.amela.leaveservice.entity.enums.LeaveStatus;
 import vn.amela.leaveservice.entity.enums.LeaveType;
 import vn.amela.leaveservice.exception.BusinessException;
 import vn.amela.leaveservice.exception.ForbiddenActionException;
+import vn.amela.leaveservice.exception.ResourceNotFoundException;
 import vn.amela.leaveservice.mapper.LeaveMapper;
 import vn.amela.leaveservice.mapper.OutboxEventMapper;
 import vn.amela.leaveservice.security.CurrentUser;
@@ -25,6 +26,7 @@ import vn.amela.leaveservice.service.impl.LeaveServiceImpl;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,6 +44,81 @@ class LeaveServiceImplTest {
     @Mock private EmployeeSnapshotService employeeSnapshotService;
     @Mock private ObjectMapper objectMapper;
     @InjectMocks private LeaveServiceImpl leaveService;
+
+    @Test
+    @DisplayName("getById allows HR to view any leave")
+    void getByIdAllowsHrToViewAnyLeave() {
+        LeaveRequest leaveRequest = leaveRequest(99L);
+        when(leaveMapper.findById(100L)).thenReturn(Optional.of(leaveRequest));
+
+        LeaveResponse response = leaveService.getById(100L, hrUser());
+
+        assertMappedLeave(response, 99L);
+        verify(leaveMapper).findById(100L);
+        verifyNoInteractions(employeeSnapshotService, outboxEventMapper, objectMapper);
+    }
+
+    @Test
+    @DisplayName("getById allows employee to view own leave")
+    void getByIdAllowsEmployeeToViewOwnLeave() {
+        when(leaveMapper.findById(100L)).thenReturn(Optional.of(leaveRequest(10L)));
+        when(employeeSnapshotService.getEmployeeSnapshotByAuthUserId(2L)).thenReturn(employeeSnapshot());
+
+        LeaveResponse response = leaveService.getById(100L, employeeUser());
+
+        assertMappedLeave(response, 10L);
+        verify(leaveMapper).findById(100L);
+        verify(employeeSnapshotService).getEmployeeSnapshotByAuthUserId(2L);
+        verifyNoInteractions(outboxEventMapper, objectMapper);
+    }
+
+    @Test
+    @DisplayName("getById rejects employee viewing another employee leave")
+    void getByIdRejectsEmployeeViewingOtherLeave() {
+        when(leaveMapper.findById(100L)).thenReturn(Optional.of(leaveRequest(99L)));
+        when(employeeSnapshotService.getEmployeeSnapshotByAuthUserId(2L)).thenReturn(employeeSnapshot());
+
+        assertThatThrownBy(() -> leaveService.getById(100L, employeeUser()))
+                .isInstanceOf(ForbiddenActionException.class)
+                .hasMessage("You can only view your own leave requests");
+
+        verify(leaveMapper).findById(100L);
+        verify(employeeSnapshotService).getEmployeeSnapshotByAuthUserId(2L);
+        verifyNoInteractions(outboxEventMapper, objectMapper);
+    }
+
+    @Test
+    @DisplayName("getById rejects null user and does not call dependencies")
+    void getByIdRejectsNullUser() {
+        assertThatThrownBy(() -> leaveService.getById(100L, null))
+                .isInstanceOf(ForbiddenActionException.class)
+                .hasMessage("Only HR or Employee can view leave requests");
+
+        verifyNoInteractions(leaveMapper, employeeSnapshotService, outboxEventMapper, objectMapper);
+    }
+
+    @Test
+    @DisplayName("getById rejects unsupported role and does not call dependencies")
+    void getByIdRejectsUnsupportedRole() {
+        assertThatThrownBy(() -> leaveService.getById(100L, new CurrentUser("manager", 3L, "MANAGER")))
+                .isInstanceOf(ForbiddenActionException.class)
+                .hasMessage("Only HR or Employee can view leave requests");
+
+        verifyNoInteractions(leaveMapper, employeeSnapshotService, outboxEventMapper, objectMapper);
+    }
+
+    @Test
+    @DisplayName("getById rejects missing leave")
+    void getByIdRejectsMissingLeave() {
+        when(leaveMapper.findById(100L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> leaveService.getById(100L, employeeUser()))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Leave request not found");
+
+        verify(leaveMapper).findById(100L);
+        verifyNoInteractions(employeeSnapshotService, outboxEventMapper, objectMapper);
+    }
 
     @Test
     @DisplayName("search returns mapped page for HR user")
@@ -258,8 +335,12 @@ class LeaveServiceImplTest {
     }
 
     private void assertMappedLeave(LeaveResponse item) {
+        assertMappedLeave(item, 10L);
+    }
+
+    private void assertMappedLeave(LeaveResponse item, Long employeeId) {
         assertThat(item.id()).isEqualTo(100L);
-        assertThat(item.employeeId()).isEqualTo(10L);
+        assertThat(item.employeeId()).isEqualTo(employeeId);
         assertThat(item.employeeCode()).isEqualTo("EMP001");
         assertThat(item.employeeName()).isEqualTo("Employee One");
         assertThat(item.departmentName()).isEqualTo("Engineering");
@@ -291,9 +372,13 @@ class LeaveServiceImplTest {
     }
 
     private LeaveRequest leaveRequest() {
+        return leaveRequest(10L);
+    }
+
+    private LeaveRequest leaveRequest(Long employeeId) {
         return LeaveRequest.builder()
                 .id(100L)
-                .employeeId(10L)
+                .employeeId(employeeId)
                 .employeeCode("EMP001")
                 .employeeName("Employee One")
                 .departmentName("Engineering")

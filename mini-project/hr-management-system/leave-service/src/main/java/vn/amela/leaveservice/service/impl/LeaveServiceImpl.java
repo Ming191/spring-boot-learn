@@ -150,7 +150,17 @@ public class LeaveServiceImpl implements LeaveService {
 
     @Override
     public LeaveResponse getById(Long id, CurrentUser user) {
-        return null;
+        requireLeaveViewerRole(user);
+
+        LeaveRequest leaveRequest = loadLeaveRequest(id);
+        if (!user.isHr()) {
+            EmployeeSnapshotResponse employee = employeeSnapshotService.getEmployeeSnapshotByAuthUserId(user.userId());
+            if (!leaveRequest.getEmployeeId().equals(employee.id())) {
+                throw new ForbiddenActionException("You can only view your own leave requests");
+            }
+        }
+
+        return toResponse(leaveRequest);
     }
 
     @Override
@@ -318,6 +328,11 @@ public class LeaveServiceImpl implements LeaveService {
     private LeaveRequest loadCreatedLeaveRequest(Long id) {
         return leaveMapper.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Created leave request not found"));
+    }
+
+    private LeaveRequest loadLeaveRequest(Long id) {
+        return leaveMapper.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Leave request not found"));
     }
 
     private LeaveResponse toResponse(LeaveRequest request) {
