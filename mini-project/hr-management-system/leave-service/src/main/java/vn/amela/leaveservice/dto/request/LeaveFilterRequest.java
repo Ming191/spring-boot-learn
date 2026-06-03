@@ -2,12 +2,14 @@ package vn.amela.leaveservice.dto.request;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import lombok.Builder;
 
 import vn.amela.leaveservice.entity.enums.LeaveStatus;
 import vn.amela.leaveservice.entity.enums.LeaveType;
 
 import java.time.LocalDate;
 
+@Builder
 public record LeaveFilterRequest(
         Long employeeId,
         LeaveStatus status,
