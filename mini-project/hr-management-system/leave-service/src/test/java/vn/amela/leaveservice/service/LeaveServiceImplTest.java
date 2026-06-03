@@ -9,10 +9,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
 import vn.amela.leaveservice.dto.request.LeaveFilterRequest;
+import vn.amela.leaveservice.dto.request.ReviewLeaveRequest;
 import vn.amela.leaveservice.dto.response.EmployeeSnapshotResponse;
 import vn.amela.leaveservice.dto.response.LeaveResponse;
 import vn.amela.leaveservice.dto.response.PageResponse;
 import vn.amela.leaveservice.entity.LeaveRequest;
+import vn.amela.leaveservice.entity.OutboxEvent;
 import vn.amela.leaveservice.entity.enums.LeaveStatus;
 import vn.amela.leaveservice.entity.enums.LeaveType;
 import vn.amela.leaveservice.exception.BusinessException;
@@ -44,6 +46,67 @@ class LeaveServiceImplTest {
     @Mock private EmployeeSnapshotService employeeSnapshotService;
     @Mock private ObjectMapper objectMapper;
     @InjectMocks private LeaveServiceImpl leaveService;
+
+    @Test
+    @DisplayName("approve updates pending leave and writes outbox event")
+    void approveUpdatesPendingLeaveAndWritesOutboxEvent() throws Exception {
+        LeaveRequest pending = leaveRequest(10L);
+        LeaveRequest approved = leaveRequest(10L);
+        approved.setStatus(LeaveStatus.APPROVED);
+        approved.setReviewedBy(1L);
+        approved.setReviewerNote("Approved");
+        approved.setReviewedAt(LocalDateTime.of(2026, 6, 2, 9, 0));
+        when(leaveMapper.findById(100L)).thenReturn(Optional.of(pending), Optional.of(approved));
+        when(leaveMapper.approve(any(), any(), any(), any())).thenReturn(1);
+        when(objectMapper.writeValueAsString(approved)).thenReturn("{json}");
+
+        LeaveResponse response = leaveService.approve(100L, new ReviewLeaveRequest("Approved"), hrUser());
+
+        assertThat(response.status()).isEqualTo(LeaveStatus.APPROVED);
+        assertThat(response.reviewedBy()).isEqualTo(1L);
+        assertThat(response.reviewerNote()).isEqualTo("Approved");
+        verify(leaveMapper).approve(any(), any(), any(), any());
+        ArgumentCaptor<OutboxEvent> eventCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventMapper).insert(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getEventType()).isEqualTo("leave.approved");
+        assertThat(eventCaptor.getValue().getAggregateId()).isEqualTo(100L);
+    }
+
+    @Test
+    @DisplayName("approve rejects non HR user")
+    void approveRejectsNonHrUser() {
+        assertThatThrownBy(() -> leaveService.approve(100L, new ReviewLeaveRequest("Approved"), employeeUser()))
+                .isInstanceOf(ForbiddenActionException.class)
+                .hasMessage("Only HR can search leave requests");
+
+        verifyNoInteractions(leaveMapper, outboxEventMapper, employeeSnapshotService, objectMapper);
+    }
+
+    @Test
+    @DisplayName("approve rejects missing leave")
+    void approveRejectsMissingLeave() {
+        when(leaveMapper.findById(100L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> leaveService.approve(100L, new ReviewLeaveRequest("Approved"), hrUser()))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Leave request not found");
+
+        verify(leaveMapper).findById(100L);
+        verifyNoInteractions(outboxEventMapper, employeeSnapshotService, objectMapper);
+    }
+
+    @Test
+    @DisplayName("approve rejects non pending leave")
+    void approveRejectsNonPendingLeave() {
+        when(leaveMapper.findById(100L)).thenReturn(Optional.of(leaveRequest(10L)));
+        when(leaveMapper.approve(any(), any(), any(), any())).thenReturn(0);
+
+        assertThatThrownBy(() -> leaveService.approve(100L, new ReviewLeaveRequest("Approved"), hrUser()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Only pending leave requests can be approved");
+
+        verifyNoInteractions(outboxEventMapper, employeeSnapshotService, objectMapper);
+    }
 
     @Test
     @DisplayName("getById allows HR to view any leave")

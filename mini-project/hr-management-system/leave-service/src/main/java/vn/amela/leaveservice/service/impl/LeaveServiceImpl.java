@@ -26,6 +26,7 @@ import vn.amela.leaveservice.service.LeaveService;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
@@ -35,6 +36,7 @@ import java.util.Set;
 public class LeaveServiceImpl implements LeaveService {
 
     private static final String LEAVE_REQUESTED_EVENT = "leave.requested";
+    private static final String LEAVE_APPROVED_EVENT = "leave.approved";
     private static final String LEAVE_AGGREGATE_TYPE = "LEAVE_REQUEST";
     private static final String DEFAULT_SORT_BY = "createdAt";
     private static final String DEFAULT_SORT_DIRECTION = "desc";
@@ -164,8 +166,25 @@ public class LeaveServiceImpl implements LeaveService {
     }
 
     @Override
+    @Transactional
     public LeaveResponse approve(Long id, ReviewLeaveRequest request, CurrentUser user) {
-        return null;
+        requireHrRole(user);
+
+        loadLeaveRequest(id);
+        int updatedRows = leaveMapper.approve(
+                id,
+                user.userId(),
+                request == null ? null : request.reviewerNote(),
+                LocalDateTime.now()
+        );
+        if (updatedRows == 0) {
+            throw new BusinessException("Only pending leave requests can be approved");
+        }
+
+        LeaveRequest approvedLeaveRequest = loadLeaveRequest(id);
+        saveOutboxEvent(LEAVE_AGGREGATE_TYPE, id, LEAVE_APPROVED_EVENT, approvedLeaveRequest);
+
+        return toResponse(approvedLeaveRequest);
     }
 
     @Override
