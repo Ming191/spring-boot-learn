@@ -101,7 +101,7 @@ spring:
             - id: leave-service
               uri: lb://LEAVE-SERVICE
               predicates:
-                - Path=/api/leaves/**,/leaves,/leaves/**,/css/**
+                - Path=/api/leaves/**,/leaves,/leaves/**,/leave/**
               filters:
                 - name: RequestRateLimiter
                   args:
@@ -181,7 +181,10 @@ gateway:
       roles: [HR]
     - path: /leaves/*/cancel
       methods: [POST]
-      roles: [HR, EMPLOYEE]
+      roles: [EMPLOYEE]
+    - path: /leaves/*/review
+      methods: [GET]
+      roles: [HR]
     - path: /leaves/my
       methods: [GET]
       roles: [HR, EMPLOYEE]

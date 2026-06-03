@@ -66,7 +66,7 @@ public class LeavePageController {
         model.addAttribute("leaves", leaves);
         model.addAttribute("filter", filter);
         model.addAttribute("myView", false);
-        return "leaves/list";
+        return "leave/list";
     }
 
     @GetMapping("/my")
@@ -80,7 +80,7 @@ public class LeavePageController {
         model.addAttribute("leaves", leaves);
         model.addAttribute("filter", LeaveFilterRequest.builder().page(page).size(size).build());
         model.addAttribute("myView", true);
-        return "leaves/list";
+        return "leave/my";
     }
 
     @GetMapping("/new")
@@ -89,7 +89,7 @@ public class LeavePageController {
         if (!model.containsAttribute("leaveForm")) {
             model.addAttribute("leaveForm", LeaveForm.empty());
         }
-        return "leaves/form";
+        return "leave/form";
     }
 
     @PostMapping("/new")
@@ -101,7 +101,7 @@ public class LeavePageController {
         CurrentUser user = currentUserProvider.getCurrentUser(request);
         if (bindingResult.hasErrors()) {
             addSharedModel(model, user);
-            return "leaves/form";
+            return "leave/form";
         }
         LeaveResponse created = leaveService.create(new CreateLeaveRequest(
                 form.leaveType(), form.fromDate(), form.toDate(), form.reason()), user);
@@ -113,8 +113,18 @@ public class LeavePageController {
     public String detail(@PathVariable Long id, HttpServletRequest request, Model model) {
         CurrentUser user = currentUserProvider.getCurrentUser(request);
         addSharedModel(model, user);
+        LeaveResponse leave = leaveService.getById(id, user);
+        model.addAttribute("leave", leave);
+        model.addAttribute("canCancel", user.isEmployee() && LeaveStatus.PENDING.equals(leave.status()));
+        return "leave/detail";
+    }
+
+    @GetMapping("/{id}/review")
+    public String review(@PathVariable Long id, HttpServletRequest request, Model model) {
+        CurrentUser user = currentUserProvider.getCurrentUser(request);
+        addSharedModel(model, user);
         model.addAttribute("leave", leaveService.getById(id, user));
-        return "leaves/detail";
+        return "leave/review";
     }
 
     @PostMapping("/{id}/approve")
