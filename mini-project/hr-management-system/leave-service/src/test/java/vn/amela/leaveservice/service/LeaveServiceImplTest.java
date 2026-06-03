@@ -50,6 +50,69 @@ class LeaveServiceImplTest {
     @InjectMocks private LeaveServiceImpl leaveService;
 
     @Test
+    @DisplayName("cancel allows employee to cancel own pending leave and writes outbox event")
+    void cancelAllowsEmployeeToCancelOwnPendingLeaveAndWritesOutboxEvent() throws Exception {
+        LeaveRequest pending = leaveRequest(10L);
+        LeaveRequest cancelled = leaveRequest(10L);
+        cancelled.setStatus(LeaveStatus.CANCELLED);
+        when(leaveMapper.findById(100L)).thenReturn(Optional.of(pending), Optional.of(cancelled));
+        when(employeeSnapshotService.getEmployeeSnapshotByAuthUserId(2L)).thenReturn(employeeSnapshot());
+        when(leaveMapper.cancel(100L, 10L)).thenReturn(1);
+        when(objectMapper.writeValueAsString(cancelled)).thenReturn("{json}");
+
+        LeaveResponse response = leaveService.cancel(100L, employeeUser());
+
+        assertThat(response.status()).isEqualTo(LeaveStatus.CANCELLED);
+        verify(employeeSnapshotService).getEmployeeSnapshotByAuthUserId(2L);
+        verify(leaveMapper).cancel(100L, 10L);
+        ArgumentCaptor<OutboxEvent> eventCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventMapper).insert(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getAggregateType()).isEqualTo("LeaveRequest");
+        assertThat(eventCaptor.getValue().getEventType()).isEqualTo("leave.cancelled");
+        assertThat(eventCaptor.getValue().getAggregateId()).isEqualTo(100L);
+    }
+
+    @Test
+    @DisplayName("cancel rejects HR user according to SRS Employee self rule")
+    void cancelRejectsHrUser() {
+        assertThatThrownBy(() -> leaveService.cancel(100L, hrUser()))
+                .isInstanceOf(ForbiddenActionException.class)
+                .hasMessage("Only Employee can cancel leave requests");
+
+        verifyNoInteractions(leaveMapper, outboxEventMapper, employeeSnapshotService, objectMapper);
+    }
+
+    @Test
+    @DisplayName("cancel rejects employee cancelling another employee leave")
+    void cancelRejectsEmployeeCancellingOtherEmployeeLeave() {
+        when(leaveMapper.findById(100L)).thenReturn(Optional.of(leaveRequest(99L)));
+        when(employeeSnapshotService.getEmployeeSnapshotByAuthUserId(2L)).thenReturn(employeeSnapshot());
+
+        assertThatThrownBy(() -> leaveService.cancel(100L, employeeUser()))
+                .isInstanceOf(ForbiddenActionException.class)
+                .hasMessage("You can only cancel your own leave requests");
+
+        verify(leaveMapper).findById(100L);
+        verify(employeeSnapshotService).getEmployeeSnapshotByAuthUserId(2L);
+        verifyNoInteractions(outboxEventMapper, objectMapper);
+    }
+
+    @Test
+    @DisplayName("cancel rejects non pending leave")
+    void cancelRejectsNonPendingLeave() {
+        when(leaveMapper.findById(100L)).thenReturn(Optional.of(leaveRequest(10L)));
+        when(employeeSnapshotService.getEmployeeSnapshotByAuthUserId(2L)).thenReturn(employeeSnapshot());
+        when(leaveMapper.cancel(100L, 10L)).thenReturn(0);
+
+        assertThatThrownBy(() -> leaveService.cancel(100L, employeeUser()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Only pending leave requests can be cancelled");
+
+        verify(leaveMapper).cancel(100L, 10L);
+        verifyNoInteractions(outboxEventMapper, objectMapper);
+    }
+
+    @Test
     @DisplayName("reject updates pending leave and writes SRS-compliant outbox payload")
     void rejectUpdatesPendingLeaveAndWritesSrsCompliantOutboxPayload() throws Exception {
         LeaveRequest pending = leaveRequest(10L);

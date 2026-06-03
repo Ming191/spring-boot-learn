@@ -37,6 +37,7 @@ import java.util.Set;
 public class LeaveServiceImpl implements LeaveService {
 
     private static final String LEAVE_REQUESTED_EVENT = "leave.requested";
+    private static final String LEAVE_CANCELLED_EVENT = "leave.cancelled";
     private static final String LEAVE_REJECTED_EVENT = "leave.rejected";
     private static final String LEAVE_APPROVED_EVENT = "leave.approved";
     private static final String LEAVE_AGGREGATE_TYPE = "LeaveRequest";
@@ -211,8 +212,25 @@ public class LeaveServiceImpl implements LeaveService {
     }
 
     @Override
+    @Transactional
     public LeaveResponse cancel(Long id, CurrentUser user) {
-        return null;
+        requireEmployeeRoleForCancel(user);
+
+        LeaveRequest currentLeaveRequest = loadLeaveRequest(id);
+        EmployeeSnapshotResponse employee = employeeSnapshotService.getEmployeeSnapshotByAuthUserId(user.userId());
+        if (!currentLeaveRequest.getEmployeeId().equals(employee.id())) {
+            throw new ForbiddenActionException("You can only cancel your own leave requests");
+        }
+
+        int updatedRows = leaveMapper.cancel(id, employee.id());
+        if (updatedRows == 0) {
+            throw new BusinessException("Only pending leave requests can be cancelled");
+        }
+
+        LeaveRequest cancelledLeaveRequest = loadLeaveRequest(id);
+        saveOutboxEvent(LEAVE_AGGREGATE_TYPE, id, LEAVE_CANCELLED_EVENT, cancelledLeaveRequest);
+
+        return toResponse(cancelledLeaveRequest);
     }
 
     private void requireLeaveCreatorRole(CurrentUser user) {
@@ -231,6 +249,12 @@ public class LeaveServiceImpl implements LeaveService {
     private void requireLeaveViewerRole(CurrentUser user) {
         if (user == null || (!user.isHr() && !user.isEmployee())) {
             throw new ForbiddenActionException("Only HR or Employee can view leave requests");
+        }
+    }
+
+    private void requireEmployeeRoleForCancel(CurrentUser user) {
+        if (user == null || !user.isEmployee()) {
+            throw new ForbiddenActionException("Only Employee can cancel leave requests");
         }
     }
 
