@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My leaves</title>
+    <link rel="stylesheet" th:href="@{/leave/css/hr-views.css}">
+</head>
+<body>
+<main class="shell">
+    <header class="topbar">
+        <div>
+            <h1>My leaves</h1>
+            <div class="muted" th:text="${leaves.totalElements} + ' requests found'">0 requests found</div>
+        </div>
+        <nav class="nav">
+            <a class="button secondary" th:if="${isHr}" th:href="@{/leaves}">All leaves</a>
+            <a class="button" th:href="@{/leaves/new}">New leave</a>
+        </nav>
+    </header>
+
+    <div class="flash" th:if="${success}" th:text="${success}"></div>
+
+    <section th:replace="~{leave/list-fragment :: leaveTable(${leaves}, ${isHr})}"></section>
+</main>
+</body>
+</html>

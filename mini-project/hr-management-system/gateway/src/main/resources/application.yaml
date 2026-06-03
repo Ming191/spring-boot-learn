@@ -101,7 +101,7 @@ spring:
             - id: leave-service
               uri: lb://LEAVE-SERVICE
               predicates:
-                - Path=/api/leaves/**
+                - Path=/api/leaves/**,/leaves,/leaves/**,/leave/**
               filters:
                 - name: RequestRateLimiter
                   args:
@@ -173,6 +173,30 @@ gateway:
     - path: /api/departments/**
       methods: [POST, PUT, DELETE]
       roles: [HR]
+    - path: /leaves/*/approve
+      methods: [POST]
+      roles: [HR]
+    - path: /leaves/*/reject
+      methods: [POST]
+      roles: [HR]
+    - path: /leaves/*/cancel
+      methods: [POST]
+      roles: [EMPLOYEE]
+    - path: /leaves/*/review
+      methods: [GET]
+      roles: [HR]
+    - path: /leaves/my
+      methods: [GET]
+      roles: [HR, EMPLOYEE]
+    - path: /leaves/new
+      methods: [GET, POST]
+      roles: [HR, EMPLOYEE]
+    - path: /leaves
+      methods: [GET]
+      roles: [HR]
+    - path: /leaves/**
+      methods: [GET]
+      roles: [HR, EMPLOYEE]
 
 resilience4j:
   circuitbreaker:
