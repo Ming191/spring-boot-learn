@@ -12,6 +12,7 @@ import vn.amela.leaveservice.dto.response.EmployeeSnapshotResponse;
 import vn.amela.leaveservice.dto.response.LeaveResponse;
 import vn.amela.leaveservice.dto.response.PageResponse;
 import vn.amela.leaveservice.entity.LeaveRequest;
+import vn.amela.leaveservice.entity.LeaveRejectedPayload;
 import vn.amela.leaveservice.entity.LeaveRequestedPayload;
 import vn.amela.leaveservice.entity.OutboxEvent;
 import vn.amela.leaveservice.entity.enums.LeaveStatus;
@@ -36,8 +37,9 @@ import java.util.Set;
 public class LeaveServiceImpl implements LeaveService {
 
     private static final String LEAVE_REQUESTED_EVENT = "leave.requested";
+    private static final String LEAVE_REJECTED_EVENT = "leave.rejected";
     private static final String LEAVE_APPROVED_EVENT = "leave.approved";
-    private static final String LEAVE_AGGREGATE_TYPE = "LEAVE_REQUEST";
+    private static final String LEAVE_AGGREGATE_TYPE = "LeaveRequest";
     private static final String DEFAULT_SORT_BY = "createdAt";
     private static final String DEFAULT_SORT_DIRECTION = "desc";
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
@@ -188,8 +190,24 @@ public class LeaveServiceImpl implements LeaveService {
     }
 
     @Override
+    @Transactional
     public LeaveResponse reject(Long id, RejectLeaveRequest request, CurrentUser user) {
-        return null;
+        requireHrRole(user);
+        String reviewerNote = normalizeRequiredText(
+                request == null ? null : request.reviewerNote(),
+                "Reviewer note"
+        );
+
+        loadLeaveRequest(id);
+        int updatedRows = leaveMapper.reject(id, user.userId(), reviewerNote, LocalDateTime.now());
+        if (updatedRows == 0) {
+            throw new BusinessException("Only pending leave requests can be rejected");
+        }
+
+        LeaveRequest rejectedLeaveRequest = loadLeaveRequest(id);
+        saveLeaveRejectedEvent(rejectedLeaveRequest);
+
+        return toResponse(rejectedLeaveRequest);
     }
 
     @Override
@@ -201,6 +219,13 @@ public class LeaveServiceImpl implements LeaveService {
         if (!user.isHr() && !user.isEmployee()) {
             throw new ForbiddenActionException("Only HR or Employee can create leave requests");
         }
+    }
+
+    private String normalizeRequiredText(String text, String fieldName) {
+        if (text == null || text.isBlank()) {
+            throw new BusinessException(fieldName + " is required");
+        }
+        return text.trim();
     }
 
     private void requireLeaveViewerRole(CurrentUser user) {
@@ -295,6 +320,25 @@ public class LeaveServiceImpl implements LeaveService {
                 LEAVE_AGGREGATE_TYPE,
                 leaveRequest.getId(),
                 LEAVE_REQUESTED_EVENT,
+                payload
+        );
+    }
+
+    private void saveLeaveRejectedEvent(LeaveRequest leaveRequest) {
+        LeaveRejectedPayload payload = LeaveRejectedPayload.builder()
+                .eventType(LEAVE_REJECTED_EVENT)
+                .aggregateType(LEAVE_AGGREGATE_TYPE)
+                .aggregateId(leaveRequest.getId())
+                .employeeId(leaveRequest.getEmployeeId())
+                .employeeName(leaveRequest.getEmployeeName())
+                .reviewerNote(leaveRequest.getReviewerNote())
+                .timestamp(Instant.now())
+                .build();
+
+        saveOutboxEvent(
+                LEAVE_AGGREGATE_TYPE,
+                leaveRequest.getId(),
+                LEAVE_REJECTED_EVENT,
                 payload
         );
     }

@@ -9,11 +9,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
 import vn.amela.leaveservice.dto.request.LeaveFilterRequest;
+import vn.amela.leaveservice.dto.request.RejectLeaveRequest;
 import vn.amela.leaveservice.dto.request.ReviewLeaveRequest;
 import vn.amela.leaveservice.dto.response.EmployeeSnapshotResponse;
 import vn.amela.leaveservice.dto.response.LeaveResponse;
 import vn.amela.leaveservice.dto.response.PageResponse;
 import vn.amela.leaveservice.entity.LeaveRequest;
+import vn.amela.leaveservice.entity.LeaveRejectedPayload;
 import vn.amela.leaveservice.entity.OutboxEvent;
 import vn.amela.leaveservice.entity.enums.LeaveStatus;
 import vn.amela.leaveservice.entity.enums.LeaveType;
@@ -46,6 +48,54 @@ class LeaveServiceImplTest {
     @Mock private EmployeeSnapshotService employeeSnapshotService;
     @Mock private ObjectMapper objectMapper;
     @InjectMocks private LeaveServiceImpl leaveService;
+
+    @Test
+    @DisplayName("reject updates pending leave and writes SRS-compliant outbox payload")
+    void rejectUpdatesPendingLeaveAndWritesSrsCompliantOutboxPayload() throws Exception {
+        LeaveRequest pending = leaveRequest(10L);
+        LeaveRequest rejected = leaveRequest(10L);
+        rejected.setStatus(LeaveStatus.REJECTED);
+        rejected.setReviewedBy(1L);
+        rejected.setReviewerNote("Missing staff");
+        rejected.setReviewedAt(LocalDateTime.of(2026, 6, 2, 9, 0));
+        when(leaveMapper.findById(100L)).thenReturn(Optional.of(pending), Optional.of(rejected));
+        when(leaveMapper.reject(any(), any(), any(), any())).thenReturn(1);
+        when(objectMapper.writeValueAsString(any())).thenReturn("{json}");
+
+        LeaveResponse response = leaveService.reject(100L, new RejectLeaveRequest("  Missing staff  "), hrUser());
+
+        assertThat(response.status()).isEqualTo(LeaveStatus.REJECTED);
+        assertThat(response.reviewerNote()).isEqualTo("Missing staff");
+        verify(leaveMapper).reject(any(), any(), any(), any());
+
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(objectMapper).writeValueAsString(payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue()).isInstanceOf(LeaveRejectedPayload.class);
+        LeaveRejectedPayload payload = (LeaveRejectedPayload) payloadCaptor.getValue();
+        assertThat(payload.eventType()).isEqualTo("leave.rejected");
+        assertThat(payload.aggregateType()).isEqualTo("LeaveRequest");
+        assertThat(payload.aggregateId()).isEqualTo(100L);
+        assertThat(payload.employeeId()).isEqualTo(10L);
+        assertThat(payload.employeeName()).isEqualTo("Employee One");
+        assertThat(payload.reviewerNote()).isEqualTo("Missing staff");
+        assertThat(payload.timestamp()).isNotNull();
+
+        ArgumentCaptor<OutboxEvent> eventCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventMapper).insert(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getAggregateType()).isEqualTo("LeaveRequest");
+        assertThat(eventCaptor.getValue().getEventType()).isEqualTo("leave.rejected");
+        assertThat(eventCaptor.getValue().getAggregateId()).isEqualTo(100L);
+    }
+
+    @Test
+    @DisplayName("reject requires reviewer note")
+    void rejectRequiresReviewerNote() {
+        assertThatThrownBy(() -> leaveService.reject(100L, new RejectLeaveRequest(" "), hrUser()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Reviewer note is required");
+
+        verifyNoInteractions(leaveMapper, outboxEventMapper, employeeSnapshotService, objectMapper);
+    }
 
     @Test
     @DisplayName("approve updates pending leave and writes outbox event")
