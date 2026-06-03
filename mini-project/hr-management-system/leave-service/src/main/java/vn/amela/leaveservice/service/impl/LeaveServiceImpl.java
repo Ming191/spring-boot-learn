@@ -12,6 +12,7 @@ import vn.amela.leaveservice.dto.response.EmployeeSnapshotResponse;
 import vn.amela.leaveservice.dto.response.LeaveResponse;
 import vn.amela.leaveservice.dto.response.PageResponse;
 import vn.amela.leaveservice.entity.LeaveRequest;
+import vn.amela.leaveservice.entity.LeaveRejectedPayload;
 import vn.amela.leaveservice.entity.LeaveRequestedPayload;
 import vn.amela.leaveservice.entity.OutboxEvent;
 import vn.amela.leaveservice.entity.enums.LeaveStatus;
@@ -26,14 +27,35 @@ import vn.amela.leaveservice.service.LeaveService;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class LeaveServiceImpl implements LeaveService {
 
     private static final String LEAVE_REQUESTED_EVENT = "leave.requested";
-    private static final String LEAVE_AGGREGATE_TYPE = "LEAVE_REQUEST";
+    private static final String LEAVE_CANCELLED_EVENT = "leave.cancelled";
+    private static final String LEAVE_REJECTED_EVENT = "leave.rejected";
+    private static final String LEAVE_APPROVED_EVENT = "leave.approved";
+    private static final String LEAVE_AGGREGATE_TYPE = "LeaveRequest";
+    private static final String DEFAULT_SORT_BY = "createdAt";
+    private static final String DEFAULT_SORT_DIRECTION = "desc";
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "employeeId",
+            "employeeCode",
+            "employeeName",
+            "departmentName",
+            "leaveType",
+            "fromDate",
+            "toDate",
+            "totalDays",
+            "status",
+            "reviewedAt",
+            "createdAt"
+    );
 
 
     private final LeaveMapper leaveMapper;
@@ -87,38 +109,218 @@ public class LeaveServiceImpl implements LeaveService {
 
     @Override
     public PageResponse<LeaveResponse> search(LeaveFilterRequest filter, CurrentUser user) {
-        return null;
+        requireHrRole(user);
+
+        LeaveFilterRequest normalizedFilter = normalizeFilter(filter);
+        List<LeaveResponse> items = leaveMapper.search(normalizedFilter)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+        long totalElements = leaveMapper.countByFilter(normalizedFilter);
+        int totalPages = (int) Math.ceil((double) totalElements / normalizedFilter.size());
+
+        return PageResponse.<LeaveResponse>builder()
+                .items(items)
+                .page(normalizedFilter.page())
+                .size(normalizedFilter.size())
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
     }
 
     @Override
     public PageResponse<LeaveResponse> findMyLeaves(CurrentUser user, int page, int size) {
-        return null;
+        requireLeaveViewerRole(user);
+
+        int normalizedPage = normalizePage(page);
+        int normalizedSize = normalizeSize(size);
+        int offset = normalizedPage * normalizedSize;
+
+        EmployeeSnapshotResponse employee = employeeSnapshotService.getEmployeeSnapshotByAuthUserId(user.userId());
+        List<LeaveResponse> items = leaveMapper.findByEmployeeId(employee.id(), normalizedSize, offset)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+        long totalElements = leaveMapper.countByEmployeeId(employee.id());
+        int totalPages = (int) Math.ceil((double) totalElements / normalizedSize);
+
+        return PageResponse.<LeaveResponse>builder()
+                .items(items)
+                .page(normalizedPage)
+                .size(normalizedSize)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
     }
 
     @Override
     public LeaveResponse getById(Long id, CurrentUser user) {
-        return null;
+        requireLeaveViewerRole(user);
+
+        LeaveRequest leaveRequest = loadLeaveRequest(id);
+        if (!user.isHr()) {
+            EmployeeSnapshotResponse employee = employeeSnapshotService.getEmployeeSnapshotByAuthUserId(user.userId());
+            if (!leaveRequest.getEmployeeId().equals(employee.id())) {
+                throw new ForbiddenActionException("You can only view your own leave requests");
+            }
+        }
+
+        return toResponse(leaveRequest);
     }
 
     @Override
+    @Transactional
     public LeaveResponse approve(Long id, ReviewLeaveRequest request, CurrentUser user) {
-        return null;
+        requireHrRole(user);
+
+        loadLeaveRequest(id);
+        int updatedRows = leaveMapper.approve(
+                id,
+                user.userId(),
+                request == null ? null : request.reviewerNote(),
+                LocalDateTime.now()
+        );
+        if (updatedRows == 0) {
+            throw new BusinessException("Only pending leave requests can be approved");
+        }
+
+        LeaveRequest approvedLeaveRequest = loadLeaveRequest(id);
+        saveOutboxEvent(LEAVE_AGGREGATE_TYPE, id, LEAVE_APPROVED_EVENT, approvedLeaveRequest);
+
+        return toResponse(approvedLeaveRequest);
     }
 
     @Override
+    @Transactional
     public LeaveResponse reject(Long id, RejectLeaveRequest request, CurrentUser user) {
-        return null;
+        requireHrRole(user);
+        String reviewerNote = normalizeRequiredText(
+                request == null ? null : request.reviewerNote(),
+                "Reviewer note"
+        );
+
+        loadLeaveRequest(id);
+        int updatedRows = leaveMapper.reject(id, user.userId(), reviewerNote, LocalDateTime.now());
+        if (updatedRows == 0) {
+            throw new BusinessException("Only pending leave requests can be rejected");
+        }
+
+        LeaveRequest rejectedLeaveRequest = loadLeaveRequest(id);
+        saveLeaveRejectedEvent(rejectedLeaveRequest);
+
+        return toResponse(rejectedLeaveRequest);
     }
 
     @Override
+    @Transactional
     public LeaveResponse cancel(Long id, CurrentUser user) {
-        return null;
+        requireEmployeeRoleForCancel(user);
+
+        LeaveRequest currentLeaveRequest = loadLeaveRequest(id);
+        EmployeeSnapshotResponse employee = employeeSnapshotService.getEmployeeSnapshotByAuthUserId(user.userId());
+        if (!currentLeaveRequest.getEmployeeId().equals(employee.id())) {
+            throw new ForbiddenActionException("You can only cancel your own leave requests");
+        }
+
+        int updatedRows = leaveMapper.cancel(id, employee.id());
+        if (updatedRows == 0) {
+            throw new BusinessException("Only pending leave requests can be cancelled");
+        }
+
+        LeaveRequest cancelledLeaveRequest = loadLeaveRequest(id);
+        saveOutboxEvent(LEAVE_AGGREGATE_TYPE, id, LEAVE_CANCELLED_EVENT, cancelledLeaveRequest);
+
+        return toResponse(cancelledLeaveRequest);
     }
 
     private void requireLeaveCreatorRole(CurrentUser user) {
         if (!user.isHr() && !user.isEmployee()) {
             throw new ForbiddenActionException("Only HR or Employee can create leave requests");
         }
+    }
+
+    private String normalizeRequiredText(String text, String fieldName) {
+        if (text == null || text.isBlank()) {
+            throw new BusinessException(fieldName + " is required");
+        }
+        return text.trim();
+    }
+
+    private void requireLeaveViewerRole(CurrentUser user) {
+        if (user == null || (!user.isHr() && !user.isEmployee())) {
+            throw new ForbiddenActionException("Only HR or Employee can view leave requests");
+        }
+    }
+
+    private void requireEmployeeRoleForCancel(CurrentUser user) {
+        if (user == null || !user.isEmployee()) {
+            throw new ForbiddenActionException("Only Employee can cancel leave requests");
+        }
+    }
+
+    private int normalizePage(int page) {
+        return Math.max(page, 0);
+    }
+
+    private int normalizeSize(int size) {
+        if (size <= 0) {
+            return 10;
+        }
+        return Math.min(size, 100);
+    }
+
+    private void requireHrRole(CurrentUser user) {
+        if (user == null || !user.isHr()) {
+            throw new ForbiddenActionException("Only HR can search leave requests");
+        }
+    }
+
+    private LeaveFilterRequest normalizeFilter(LeaveFilterRequest filter) {
+        LeaveFilterRequest currentFilter = filter == null
+                ? LeaveFilterRequest.builder().build()
+                : filter;
+
+        if (currentFilter.fromDate() != null
+                && currentFilter.toDate() != null
+                && currentFilter.toDate().isBefore(currentFilter.fromDate())) {
+            throw new BusinessException("To date must be greater than or equal to from date");
+        }
+
+        return LeaveFilterRequest.builder()
+                .employeeId(currentFilter.employeeId())
+                .status(currentFilter.status())
+                .leaveType(currentFilter.leaveType())
+                .fromDate(currentFilter.fromDate())
+                .toDate(currentFilter.toDate())
+                .departmentName(normalizeOptionalText(currentFilter.departmentName()))
+                .page(currentFilter.page())
+                .size(currentFilter.size())
+                .sortBy(normalizeSortBy(currentFilter.sortBy()))
+                .sortDirection(normalizeSortDirection(currentFilter.sortDirection()))
+                .build();
+    }
+
+    private String normalizeSortBy(String sortBy) {
+        String normalizedSortBy = normalizeOptionalText(sortBy);
+        if (normalizedSortBy == null || !ALLOWED_SORT_FIELDS.contains(normalizedSortBy)) {
+            return DEFAULT_SORT_BY;
+        }
+        return normalizedSortBy;
+    }
+
+    private String normalizeSortDirection(String sortDirection) {
+        String normalizedSortDirection = normalizeOptionalText(sortDirection);
+        if (normalizedSortDirection == null) {
+            return DEFAULT_SORT_DIRECTION;
+        }
+        return "asc".equalsIgnoreCase(normalizedSortDirection) ? "asc" : DEFAULT_SORT_DIRECTION;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private void saveLeaveRequestedEvent(LeaveRequest leaveRequest) {
@@ -142,6 +344,25 @@ public class LeaveServiceImpl implements LeaveService {
                 LEAVE_AGGREGATE_TYPE,
                 leaveRequest.getId(),
                 LEAVE_REQUESTED_EVENT,
+                payload
+        );
+    }
+
+    private void saveLeaveRejectedEvent(LeaveRequest leaveRequest) {
+        LeaveRejectedPayload payload = LeaveRejectedPayload.builder()
+                .eventType(LEAVE_REJECTED_EVENT)
+                .aggregateType(LEAVE_AGGREGATE_TYPE)
+                .aggregateId(leaveRequest.getId())
+                .employeeId(leaveRequest.getEmployeeId())
+                .employeeName(leaveRequest.getEmployeeName())
+                .reviewerNote(leaveRequest.getReviewerNote())
+                .timestamp(Instant.now())
+                .build();
+
+        saveOutboxEvent(
+                LEAVE_AGGREGATE_TYPE,
+                leaveRequest.getId(),
+                LEAVE_REJECTED_EVENT,
                 payload
         );
     }
@@ -194,6 +415,11 @@ public class LeaveServiceImpl implements LeaveService {
     private LeaveRequest loadCreatedLeaveRequest(Long id) {
         return leaveMapper.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Created leave request not found"));
+    }
+
+    private LeaveRequest loadLeaveRequest(Long id) {
+        return leaveMapper.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Leave request not found"));
     }
 
     private LeaveResponse toResponse(LeaveRequest request) {

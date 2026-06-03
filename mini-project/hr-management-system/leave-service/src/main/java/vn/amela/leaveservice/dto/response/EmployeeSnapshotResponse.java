@@ -1,5 +1,8 @@
 package vn.amela.leaveservice.dto.response;
 
+import lombok.Builder;
+
+@Builder
 public record EmployeeSnapshotResponse(
         Long id,
         String employeeCode,
