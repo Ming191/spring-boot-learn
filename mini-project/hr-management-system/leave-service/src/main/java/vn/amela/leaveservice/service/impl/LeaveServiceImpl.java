@@ -11,6 +11,8 @@ import vn.amela.leaveservice.dto.request.ReviewLeaveRequest;
 import vn.amela.leaveservice.dto.response.EmployeeSnapshotResponse;
 import vn.amela.leaveservice.dto.response.LeaveResponse;
 import vn.amela.leaveservice.dto.response.PageResponse;
+import vn.amela.leaveservice.entity.LeaveApprovedPayload;
+import vn.amela.leaveservice.entity.LeaveCancelledPayload;
 import vn.amela.leaveservice.entity.LeaveRequest;
 import vn.amela.leaveservice.entity.LeaveRejectedPayload;
 import vn.amela.leaveservice.entity.LeaveRequestedPayload;
@@ -185,7 +187,7 @@ public class LeaveServiceImpl implements LeaveService {
         }
 
         LeaveRequest approvedLeaveRequest = loadLeaveRequest(id);
-        saveOutboxEvent(LEAVE_AGGREGATE_TYPE, id, LEAVE_APPROVED_EVENT, approvedLeaveRequest);
+        saveLeaveApprovedEvent(approvedLeaveRequest);
 
         return toResponse(approvedLeaveRequest);
     }
@@ -228,7 +230,7 @@ public class LeaveServiceImpl implements LeaveService {
         }
 
         LeaveRequest cancelledLeaveRequest = loadLeaveRequest(id);
-        saveOutboxEvent(LEAVE_AGGREGATE_TYPE, id, LEAVE_CANCELLED_EVENT, cancelledLeaveRequest);
+        saveLeaveCancelledEvent(cancelledLeaveRequest);
 
         return toResponse(cancelledLeaveRequest);
     }
@@ -363,6 +365,43 @@ public class LeaveServiceImpl implements LeaveService {
                 LEAVE_AGGREGATE_TYPE,
                 leaveRequest.getId(),
                 LEAVE_REJECTED_EVENT,
+                payload
+        );
+    }
+
+    private void saveLeaveApprovedEvent(LeaveRequest leaveRequest) {
+        LeaveApprovedPayload payload = LeaveApprovedPayload.builder()
+                .eventType(LEAVE_APPROVED_EVENT)
+                .aggregateType(LEAVE_AGGREGATE_TYPE)
+                .aggregateId(leaveRequest.getId())
+                .employeeId(leaveRequest.getEmployeeId())
+                .employeeName(leaveRequest.getEmployeeName())
+                .reviewerNote(leaveRequest.getReviewerNote())
+                .timestamp(Instant.now())
+                .build();
+
+        saveOutboxEvent(
+                LEAVE_AGGREGATE_TYPE,
+                leaveRequest.getId(),
+                LEAVE_APPROVED_EVENT,
+                payload
+        );
+    }
+
+    private void saveLeaveCancelledEvent(LeaveRequest leaveRequest) {
+        LeaveCancelledPayload payload = LeaveCancelledPayload.builder()
+                .eventType(LEAVE_CANCELLED_EVENT)
+                .aggregateType(LEAVE_AGGREGATE_TYPE)
+                .aggregateId(leaveRequest.getId())
+                .employeeId(leaveRequest.getEmployeeId())
+                .employeeName(leaveRequest.getEmployeeName())
+                .timestamp(Instant.now())
+                .build();
+
+        saveOutboxEvent(
+                LEAVE_AGGREGATE_TYPE,
+                leaveRequest.getId(),
+                LEAVE_CANCELLED_EVENT,
                 payload
         );
     }
