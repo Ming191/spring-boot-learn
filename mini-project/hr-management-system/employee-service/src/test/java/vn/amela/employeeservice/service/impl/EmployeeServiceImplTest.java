@@ -72,7 +72,7 @@ class EmployeeServiceImplTest {
     }
 
     @Test
-    void createNormalizesInputPersistsEmployeeAndStoresOutboxEvent() throws Exception {
+    void createNormalizesInputPersistsEmployeeAndStoresOutboxEvent() {
         CreateEmployeeRequest request = validCreateRequest();
         Department department = activeDepartment(1L, "Engineering");
         Employee createdEmployee = createdEmployee();
@@ -269,7 +269,7 @@ class EmployeeServiceImplTest {
     }
 
     @Test
-    void updateByHrStoresOutboxEventWhenDepartmentOrSalaryChanges() throws Exception {
+    void updateByHrStoresOutboxEventWhenDepartmentOrSalaryChanges() {
         Employee existingEmployee = existingEmployee();
         when(employeeMapper.findById(1L)).thenReturn(existingEmployee);
         when(departmentMapper.findById(3L)).thenReturn(activeDepartment(3L, "HR"));
@@ -286,8 +286,8 @@ class EmployeeServiceImplTest {
         assertThat(event.getEventType()).isEqualTo("employee.status.changed");
 
         JsonNode payload = objectMapper.readTree(event.getPayload());
-        assertThat(payload.get("id").asLong()).isEqualTo(1L);
-        assertThat(payload.get("departmentId").asLong()).isEqualTo(3L);
+        assertThat(payload.get("aggregateId").asLong()).isEqualTo(1L);
+        assertThat(payload.get("newDepartmentId").asLong()).isEqualTo(3L);
         assertThat(payload.get("email").asString()).isEqualTo("john@example.com");
     }
 

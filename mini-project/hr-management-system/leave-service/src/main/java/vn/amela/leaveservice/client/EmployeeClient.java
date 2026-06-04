@@ -4,7 +4,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 import vn.amela.leaveservice.dto.response.EmployeeSnapshotResponse;
 
-@FeignClient(name = "employee-service")
+@FeignClient(name = "employee-service", fallback = EmployeeClientFallback.class)
 public interface EmployeeClient {
 
     @GetMapping("/internal/employees/by-auth-user/{authUserId}")

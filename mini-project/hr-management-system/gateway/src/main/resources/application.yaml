@@ -26,48 +26,6 @@ spring:
             response-timeout: 5s
             connect-timeout: 2000
           routes:
-            - id: auth-public
-              order: 0
-              uri: lb://AUTH-SERVICE
-              predicates:
-                - Path=/api/auth/login,/api/auth/register,/api/auth/refresh
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter.replenishRate: 2
-                    redis-rate-limiter.burstCapacity: 5
-                    redis-rate-limiter.requestedTokens: 1
-                - name: CircuitBreaker
-                  args:
-                    name: auth-service-circuit-breaker
-                    fallbackUri: forward:/fallback/auth-service
-                    statusCodes:
-                      - 500
-                      - 502
-                      - 503
-                      - 504
-            - id: auth-service
-              order: 10
-              uri: lb://AUTH-SERVICE
-              predicates:
-                - Path=/api/auth/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter.replenishRate: 10
-                    redis-rate-limiter.burstCapacity: 20
-                    redis-rate-limiter.requestedTokens: 1
-                - name: CircuitBreaker
-                  args:
-                    name: auth-service-circuit-breaker
-                    fallbackUri: forward:/fallback/auth-service
-                    statusCodes:
-                      - 500
-                      - 502
-                      - 503
-                      - 504
             - id: auth-public-views
               order: 20
               uri: lb://AUTH-SERVICE
@@ -115,66 +73,6 @@ spring:
               uri: lb://AUTH-SERVICE
               predicates:
                 - Path=/auth-assets/**
-            - id: employee-service
-              uri: lb://EMPLOYEE-SERVICE
-              predicates:
-                - Path=/api/employees/**,/api/departments/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@userKeyResolver}"
-                    redis-rate-limiter.replenishRate: 20
-                    redis-rate-limiter.burstCapacity: 40
-                    redis-rate-limiter.requestedTokens: 1
-                - name: CircuitBreaker
-                  args:
-                    name: employee-service-circuit-breaker
-                    fallbackUri: forward:/fallback/employee-service
-                    statusCodes:
-                      - 500
-                      - 502
-                      - 503
-                      - 504
-                - name: Retry
-                  args:
-                    retries: 1
-                    methods: GET
-                    series: SERVER_ERROR
-                    backoff:
-                      firstBackoff: 500ms
-                      maxBackoff: 2s
-                      factor: 2
-                      basedOnPreviousValue: false
-            - id: leave-service
-              uri: lb://LEAVE-SERVICE
-              predicates:
-                - Path=/leaves,/leaves/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@userKeyResolver}"
-                    redis-rate-limiter.replenishRate: 20
-                    redis-rate-limiter.burstCapacity: 40
-                    redis-rate-limiter.requestedTokens: 1
-                - name: CircuitBreaker
-                  args:
-                    name: leave-service-circuit-breaker
-                    fallbackUri: forward:/fallback/leave-service
-                    statusCodes:
-                      - 500
-                      - 502
-                      - 503
-                      - 504
-                - name: Retry
-                  args:
-                    retries: 1
-                    methods: GET
-                    series: SERVER_ERROR
-                    backoff:
-                      firstBackoff: 500ms
-                      maxBackoff: 2s
-                      factor: 2
-                      basedOnPreviousValue: false
             - id: employee-service-views
               order: 90
               uri: lb://EMPLOYEE-SERVICE
@@ -235,9 +133,6 @@ gateway:
     burst-capacity: 60
     requested-tokens: 1
   public-paths:
-    - /api/auth/login
-    - /api/auth/register
-    - /api/auth/refresh
     - /login
     - /register
     - /logout
@@ -250,8 +145,6 @@ gateway:
     - /actuator/health
     - /actuator/info
   authorization-rules:
-    - path: /api/auth/admin/**
-      roles: [HR]
     - path: /employees/*/contact
       methods: [GET, POST]
       roles: [EMPLOYEE, HR]
@@ -280,24 +173,6 @@ gateway:
       roles: [HR]
     - path: /departments/**
       methods: [GET, POST]
-      roles: [HR]
-    - path: /api/employees/*/contact
-      methods: [PATCH]
-      roles: [EMPLOYEE]
-    - path: /api/employees/*/deactivate
-      methods: [PATCH]
-      roles: [HR]
-    - path: /api/employees/**
-      methods: [POST, PUT, PATCH, DELETE]
-      roles: [HR]
-    - path: /api/employees
-      methods: [GET]
-      roles: [HR]
-    - path: /api/departments/**
-      methods: [POST, PUT, DELETE]
-      roles: [HR]
-    - path: /api/departments
-      methods: [GET]
       roles: [HR]
     - path: /leaves/*/approve
       methods: [POST]

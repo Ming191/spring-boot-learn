@@ -19,7 +19,7 @@ class LeaveServiceClientContractTest {
 
         GetMapping getMapping = method.getAnnotation(GetMapping.class);
         assertNotNull(getMapping);
-        assertArrayEquals(new String[]{"/api/leaves/pending-count"}, getMapping.value());
+        assertArrayEquals(new String[]{"/internal/leaves/pending-count"}, getMapping.value());
 
         RequestParam[] requestParams = method.getParameters()[0].getAnnotationsByType(RequestParam.class);
         assertEquals("employeeId", requestParams[0].value());
