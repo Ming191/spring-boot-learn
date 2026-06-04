@@ -254,15 +254,29 @@ gateway:
       roles: [HR]
     - path: /employees/*/contact
       methods: [GET, POST]
-      roles: [EMPLOYEE]
+      roles: [EMPLOYEE, HR]
     - path: /employees
       methods: [GET]
+      roles: [HR]
+    - path: /employees
+      methods: [POST]
+      roles: [HR]
+    - path: /employees/create
+      roles: [HR]
+    - path: /employees/*/edit
       roles: [HR]
     - path: /employees/**
       methods: [GET, POST]
       roles: [HR]
     - path: /departments
       methods: [GET]
+      roles: [HR]
+    - path: /departments
+      methods: [POST]
+      roles: [HR]
+    - path: /departments/create
+      roles: [HR]
+    - path: /departments/*/edit
       roles: [HR]
     - path: /departments/**
       methods: [GET, POST]
