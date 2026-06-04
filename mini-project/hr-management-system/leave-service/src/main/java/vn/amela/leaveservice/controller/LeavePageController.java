@@ -23,6 +23,7 @@ import vn.amela.leaveservice.dto.response.LeaveResponse;
 import vn.amela.leaveservice.dto.response.PageResponse;
 import vn.amela.leaveservice.entity.enums.LeaveStatus;
 import vn.amela.leaveservice.entity.enums.LeaveType;
+import vn.amela.leaveservice.exception.BusinessException;
 import vn.amela.leaveservice.security.CurrentUser;
 import vn.amela.leaveservice.security.CurrentUserProvider;
 import vn.amela.leaveservice.service.LeaveService;
@@ -99,14 +100,21 @@ public class LeavePageController {
                          RedirectAttributes redirectAttributes,
                          Model model) {
         CurrentUser user = currentUserProvider.getCurrentUser(request);
+        rejectInvalidDateRange(form, bindingResult);
         if (bindingResult.hasErrors()) {
             addSharedModel(model, user);
             return "leave/form";
         }
-        LeaveResponse created = leaveService.create(new CreateLeaveRequest(
-                form.leaveType(), form.fromDate(), form.toDate(), form.reason()), user);
-        redirectAttributes.addFlashAttribute("success", "Leave request created.");
-        return "redirect:/leaves/" + created.id();
+        try {
+            LeaveResponse created = leaveService.create(new CreateLeaveRequest(
+                    form.leaveType(), form.fromDate(), form.toDate(), form.reason()), user);
+            redirectAttributes.addFlashAttribute("success", "Leave request created.");
+            return "redirect:/leaves/" + created.id();
+        } catch (BusinessException ex) {
+            model.addAttribute("error", ex.getMessage());
+            addSharedModel(model, user);
+            return "leave/form";
+        }
     }
 
     @GetMapping("/{id}")
@@ -132,8 +140,12 @@ public class LeavePageController {
                           @RequestParam(required = false) String reviewerNote,
                           HttpServletRequest request,
                           RedirectAttributes redirectAttributes) {
-        leaveService.approve(id, new ReviewLeaveRequest(reviewerNote), currentUserProvider.getCurrentUser(request));
-        redirectAttributes.addFlashAttribute("success", "Leave request approved.");
+        try {
+            leaveService.approve(id, new ReviewLeaveRequest(reviewerNote), currentUserProvider.getCurrentUser(request));
+            redirectAttributes.addFlashAttribute("success", "Leave request approved.");
+        } catch (BusinessException ex) {
+            redirectAttributes.addFlashAttribute("error", ex.getMessage());
+        }
         return "redirect:/leaves/" + id;
     }
 
@@ -142,8 +154,12 @@ public class LeavePageController {
                          @RequestParam String reviewerNote,
                          HttpServletRequest request,
                          RedirectAttributes redirectAttributes) {
-        leaveService.reject(id, new RejectLeaveRequest(reviewerNote), currentUserProvider.getCurrentUser(request));
-        redirectAttributes.addFlashAttribute("success", "Leave request rejected.");
+        try {
+            leaveService.reject(id, new RejectLeaveRequest(reviewerNote), currentUserProvider.getCurrentUser(request));
+            redirectAttributes.addFlashAttribute("success", "Leave request rejected.");
+        } catch (BusinessException ex) {
+            redirectAttributes.addFlashAttribute("error", ex.getMessage());
+        }
         return "redirect:/leaves/" + id;
     }
 
@@ -151,9 +167,26 @@ public class LeavePageController {
     public String cancel(@PathVariable Long id,
                          HttpServletRequest request,
                          RedirectAttributes redirectAttributes) {
-        leaveService.cancel(id, currentUserProvider.getCurrentUser(request));
-        redirectAttributes.addFlashAttribute("success", "Leave request cancelled.");
+        try {
+            leaveService.cancel(id, currentUserProvider.getCurrentUser(request));
+            redirectAttributes.addFlashAttribute("success", "Leave request cancelled.");
+        } catch (BusinessException ex) {
+            redirectAttributes.addFlashAttribute("error", ex.getMessage());
+        }
         return "redirect:/leaves/" + id;
+    }
+
+    private void rejectInvalidDateRange(LeaveForm form, BindingResult bindingResult) {
+        if (form == null || form.fromDate() == null || form.toDate() == null) {
+            return;
+        }
+        if (form.fromDate().isAfter(form.toDate())) {
+            bindingResult.rejectValue(
+                    "toDate",
+                    "dateRange",
+                    "To date must be greater than or equal to from date"
+            );
+        }
     }
 
     private void addSharedModel(Model model, CurrentUser user) {

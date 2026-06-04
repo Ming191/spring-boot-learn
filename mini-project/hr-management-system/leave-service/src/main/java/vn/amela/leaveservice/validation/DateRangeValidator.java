@@ -8,6 +8,9 @@ public class DateRangeValidator implements ConstraintValidator<ValidDateRange, C
 
     @Override
     public boolean isValid(CreateLeaveRequest request, ConstraintValidatorContext context) {
+        if (request == null) {
+            return true;
+        }
         if (request.fromDate() == null || request.toDate() == null) {
             return true;
         }

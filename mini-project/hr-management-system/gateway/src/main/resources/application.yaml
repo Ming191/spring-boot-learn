@@ -101,7 +101,7 @@ spring:
             - id: leave-service
               uri: lb://LEAVE-SERVICE
               predicates:
-                - Path=/api/leaves/**,/leaves,/leaves/**,/leave/**
+                - Path=/leaves,/leaves/**
               filters:
                 - name: RequestRateLimiter
                   args:
