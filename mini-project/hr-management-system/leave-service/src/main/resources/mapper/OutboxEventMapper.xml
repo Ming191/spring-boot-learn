@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="vn.amela.leaveservice.mapper.OutboxEventMapper">
+
+    <sql id="outboxEventColumns">
+        id,
+        aggregate_type,
+        aggregate_id,
+        event_type,
+        payload,
+        status,
+        retry_count,
+        last_error,
+        processing_started_at,
+        next_retry_at,
+        created_at,
+        published_at
+    </sql>
+
+    <insert id="insert"
+            keyProperty="id"
+            useGeneratedKeys="true"
+    >
+        INSERT INTO outbox_events (
+            aggregate_type,
+            aggregate_id,
+            event_type,
+            payload,
+            status
+        ) VALUES (
+            #{aggregateType},
+            #{aggregateId},
+            #{eventType},
+            #{payload},
+            'PENDING'
+        )
+    </insert>
+
+    <update id="markPublished">
+
+        UPDATE outbox_events
+        SET status = 'PUBLISHED',
+            published_at = NOW(),
+            last_error = NULL,
+            processing_started_at = NULL,
+            next_retry_at = NULL
+        WHERE id = #{id}
+          AND status = 'PROCESSING'
+
+    </update>
+    <update id="markFailed">
+
+        UPDATE outbox_events
+        SET status = 'FAILED',
+            retry_count = retry_count + 1,
+            last_error = #{lastError},
+            processing_started_at = NULL,
+            next_retry_at = NULL
+        WHERE id = #{id}
+          AND status = 'PROCESSING'
+
+    </update>
+
+    <update id="markRetry">
+
+        UPDATE outbox_events
+        SET status = 'PENDING',
+            retry_count = retry_count + 1,
+            last_error = #{lastError},
+            processing_started_at = NULL,
+            next_retry_at = #{nextRetryAt}
+        WHERE id = #{id}
+          AND status = 'PROCESSING'
+
+    </update>
+
+    <select id="findPendingIds" resultType="java.lang.Long">
+        SELECT id FROM outbox_events
+        WHERE (status = 'PENDING' AND (next_retry_at IS NULL OR next_retry_at &lt;= NOW()))
+           OR (status = 'PROCESSING' AND processing_started_at &lt;= #{processingTimeoutAt})
+        ORDER BY created_at, id
+        LIMIT #{limit}
+    </select>
+
+    <update id="claimPending">
+
+        UPDATE outbox_events
+        SET status = 'PROCESSING',
+            processing_started_at = NOW()
+        WHERE id = #{id}
+          AND (
+              (status = 'PENDING' AND (next_retry_at IS NULL OR next_retry_at &lt;= NOW()))
+              OR (status = 'PROCESSING' AND processing_started_at &lt;= #{processingTimeoutAt})
+          )
+
+    </update>
+
+    <select id="findById" resultType="vn.amela.leaveservice.entity.OutboxEvent">
+        SELECT <include refid="outboxEventColumns"/>
+        FROM outbox_events
+        WHERE id = #{id}
+    </select>
+
+
+</mapper>

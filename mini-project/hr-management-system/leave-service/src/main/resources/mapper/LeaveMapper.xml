@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="vn.amela.leaveservice.mapper.LeaveMapper">
+    <sql id="leave_columns">
+        id,
+        employee_id,
+        employee_code,
+        employee_name,
+        department_name,
+        leave_type,
+        from_date,
+        to_date,
+        total_days,
+        reason,
+        status,
+        reviewed_by,
+        reviewer_note,
+        reviewed_at,
+        created_at,
+        updated_at
+    </sql>
+
+    <sql id="filter_where">
+        <where>
+            <if test="employeeId != null">
+                AND employee_id = #{employeeId}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="leaveType != null">
+                AND leave_type = #{leaveType}
+            </if>
+            <if test="fromDate != null">
+                AND from_date &gt;= #{fromDate}
+            </if>
+            <if test="toDate != null">
+                AND to_date &lt;= #{toDate}
+            </if>
+            <if test="departmentName != null and departmentName != ''">
+                AND department_name = #{departmentName}
+            </if>
+        </where>
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO leave_requests (
+            employee_id,
+            employee_code,
+            employee_name,
+            department_name,
+            leave_type,
+            from_date,
+            to_date,
+            total_days,
+            reason,
+            status
+        ) VALUES (
+            #{employeeId},
+            #{employeeCode},
+            #{employeeName},
+            #{departmentName},
+            #{leaveType},
+            #{fromDate},
+            #{toDate},
+            #{totalDays},
+            #{reason},
+            'PENDING'
+        )
+    </insert>
+
+    <update id="approve">
+        UPDATE leave_requests
+        SET status = 'APPROVED',
+            reviewed_by = #{reviewedBy},
+            reviewer_note = #{reviewerNote},
+            reviewed_at = #{reviewedAt},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 'PENDING'
+    </update>
+
+    <update id="reject">
+        UPDATE leave_requests
+        SET status = 'REJECTED',
+            reviewed_by = #{reviewedBy},
+            reviewer_note = #{reviewerNote},
+            reviewed_at = #{reviewedAt},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND status = 'PENDING'
+    </update>
+
+    <update id="cancel">
+        UPDATE leave_requests
+        SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND employee_id = #{employeeId}
+          AND status = 'PENDING'
+    </update>
+
+    <select id="findById" resultType="vn.amela.leaveservice.entity.LeaveRequest">
+        SELECT <include refid="leave_columns" />
+        FROM leave_requests
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="search" resultType="vn.amela.leaveservice.entity.LeaveRequest">
+        <bind name="offset" value="page * size"/>
+        SELECT <include refid="leave_columns" />
+        FROM leave_requests
+        <include refid="filter_where" />
+        ORDER BY
+        <choose>
+            <when test='sortBy == "employeeId"'>employee_id</when>
+            <when test='sortBy == "employeeCode"'>employee_code</when>
+            <when test='sortBy == "employeeName"'>employee_name</when>
+            <when test='sortBy == "departmentName"'>department_name</when>
+            <when test='sortBy == "leaveType"'>leave_type</when>
+            <when test='sortBy == "fromDate"'>from_date</when>
+            <when test='sortBy == "toDate"'>to_date</when>
+            <when test='sortBy == "totalDays"'>total_days</when>
+            <when test='sortBy == "status"'>status</when>
+            <when test='sortBy == "reviewedAt"'>reviewed_at</when>
+            <otherwise>created_at</otherwise>
+        </choose>
+        <choose>
+            <when test='sortDirection == "asc" or sortDirection == "ASC"'>ASC</when>
+            <otherwise>DESC</otherwise>
+        </choose>
+        , id ASC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countByFilter" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM leave_requests
+        <include refid="filter_where" />
+    </select>
+
+    <select id="findByEmployeeId" resultType="vn.amela.leaveservice.entity.LeaveRequest">
+        SELECT <include refid="leave_columns" />
+        FROM leave_requests
+        WHERE employee_id = #{employeeId}
+        ORDER BY created_at DESC, id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByEmployeeId" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM leave_requests
+        WHERE employee_id = #{employeeId}
+    </select>
+
+    <select id="existsOverlappingLeave" resultType="java.lang.Boolean">
+        SELECT COUNT(1) > 0
+        FROM leave_requests
+        WHERE employee_id = #{employeeId}
+          AND status IN ('PENDING', 'APPROVED')
+          AND from_date &lt;= #{toDate}
+          AND to_date &gt;= #{fromDate}
+    </select>
+
+    <select id="countPendingByEmployeeId" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM leave_requests
+        WHERE employee_id = #{employeeId}
+          AND status = 'PENDING'
+    </select>
+
+
+</mapper>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<section class="panel" th:fragment="leaveTable(leaves, isHr)">
+    <div class="empty muted" th:if="${#lists.isEmpty(leaves.items)}">
+        No leave requests found.
+    </div>
+
+    <div class="table-wrap" th:unless="${#lists.isEmpty(leaves.items)}">
+        <table>
+            <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Type</th>
+                <th>Dates</th>
+                <th>Days</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="leave : ${leaves.items}">
+                <td>
+                    <strong th:text="${leave.employeeName}">Employee</strong>
+                    <div class="muted" th:text="${leave.employeeCode} + ' · ' + ${leave.departmentName}">
+                        Code · Department
+                    </div>
+                </td>
+                <td th:text="${leave.leaveType}">ANNUAL</td>
+                <td>
+                    <span th:text="${leave.fromDate}"></span>
+                    →
+                    <span th:text="${leave.toDate}"></span>
+                </td>
+                <td th:text="${leave.totalDays}">1</td>
+                <td>
+                    <span class="badge" th:classappend="${leave.status}" th:text="${leave.status}">PENDING</span>
+                </td>
+                <td class="actions">
+                    <a class="button secondary" th:href="@{/leaves/{id}(id=${leave.id})}">View</a>
+                    <a class="button"
+                       th:if="${isHr and leave.status.name() == 'PENDING'}"
+                       th:href="@{/leaves/{id}/review(id=${leave.id})}">Review</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <nav class="pagination" th:if="${leaves.totalPages > 1}">
+        <a class="button secondary"
+           th:classappend="${leaves.page == 0} ? ' disabled'"
+           th:href="@{''(page=${leaves.page - 1},size=${leaves.size})}">Previous</a>
+        <span class="muted" th:text="'Page ' + (${leaves.page} + 1) + ' of ' + ${leaves.totalPages}">Page 1 of 1</span>
+        <a class="button secondary"
+           th:classappend="${leaves.page + 1 >= leaves.totalPages} ? ' disabled'"
+           th:href="@{''(page=${leaves.page + 1},size=${leaves.size})}">Next</a>
+    </nav>
+</section>
+</body>
+</html>

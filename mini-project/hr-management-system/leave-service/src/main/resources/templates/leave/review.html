@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review leave</title>
+    <link rel="stylesheet" th:href="@{/leave/css/hr-views.css}">
+</head>
+<body>
+<main class="shell">
+    <header class="topbar">
+        <div>
+            <h1>Review leave request</h1>
+            <div class="muted" th:text="${leave.employeeName} + ' · ' + ${leave.employeeCode}">Employee</div>
+        </div>
+        <nav class="nav">
+            <a class="button secondary" th:href="@{/leaves/{id}(id=${leave.id})}">Back to detail</a>
+            <a class="button secondary" th:href="@{/leaves}">All leaves</a>
+        </nav>
+    </header>
+
+    <section class="panel">
+        <div class="detail-grid">
+            <div class="detail-card">
+                <span class="muted">Status</span>
+                <strong th:text="${leave.status}">PENDING</strong>
+            </div>
+            <div class="detail-card">
+                <span class="muted">Type</span>
+                <strong th:text="${leave.leaveType}">ANNUAL</strong>
+            </div>
+            <div class="detail-card">
+                <span class="muted">Dates</span>
+                <strong>
+                    <span th:text="${leave.fromDate}"></span>
+                    →
+                    <span th:text="${leave.toDate}"></span>
+                </strong>
+            </div>
+            <div class="detail-card">
+                <span class="muted">Reason</span>
+                <strong th:text="${leave.reason}">Reason</strong>
+            </div>
+        </div>
+
+        <div class="review-box" th:if="${leave.status.name() == 'PENDING'}">
+            <form method="post" th:action="@{/leaves/{id}/approve(id=${leave.id})}" class="actions">
+                <input name="reviewerNote" placeholder="Optional reviewer note">
+                <button class="button" type="submit">Approve</button>
+            </form>
+
+            <form method="post" th:action="@{/leaves/{id}/reject(id=${leave.id})}" class="actions">
+                <input name="reviewerNote" placeholder="Rejection reason" required>
+                <button class="button danger" type="submit">Reject</button>
+            </form>
+        </div>
+
+        <div class="empty muted" th:unless="${leave.status.name() == 'PENDING'}">
+            Only pending requests can be reviewed.
+        </div>
+    </section>
+</main>
+</body>
+</html>

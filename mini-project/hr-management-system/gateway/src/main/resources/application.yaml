@@ -148,7 +148,7 @@ spring:
             - id: leave-service
               uri: lb://LEAVE-SERVICE
               predicates:
-                - Path=/api/leaves/**
+                - Path=/leaves,/leaves/**
               filters:
                 - name: RequestRateLimiter
                   args:
@@ -281,27 +281,6 @@ gateway:
     - path: /departments/**
       methods: [GET, POST]
       roles: [HR]
-    - path: /leaves/*/approve
-      methods: [POST]
-      roles: [HR]
-    - path: /leaves/*/reject
-      methods: [POST]
-      roles: [HR]
-    - path: /leaves/*/cancel
-      methods: [POST]
-      roles: [EMPLOYEE]
-    - path: /leaves/my
-      methods: [GET]
-      roles: [EMPLOYEE]
-    - path: /leaves/new
-      methods: [GET, POST]
-      roles: [HR, EMPLOYEE]
-    - path: /leaves
-      methods: [GET]
-      roles: [HR]
-    - path: /leaves/**
-      methods: [GET]
-      roles: [HR, EMPLOYEE]
     - path: /api/employees/*/contact
       methods: [PATCH]
       roles: [EMPLOYEE]
@@ -320,25 +299,28 @@ gateway:
     - path: /api/departments
       methods: [GET]
       roles: [HR]
-    - path: /api/leaves/*/approve
+    - path: /leaves/*/approve
       methods: [POST]
       roles: [HR]
-    - path: /api/leaves/*/reject
+    - path: /leaves/*/reject
       methods: [POST]
       roles: [HR]
-    - path: /api/leaves/*/cancel
+    - path: /leaves/*/cancel
       methods: [POST]
       roles: [EMPLOYEE]
-    - path: /api/leaves/my
-      methods: [GET]
-      roles: [EMPLOYEE]
-    - path: /api/leaves
+    - path: /leaves/*/review
       methods: [GET]
       roles: [HR]
-    - path: /api/leaves
-      methods: [POST]
+    - path: /leaves/my
+      methods: [GET]
       roles: [HR, EMPLOYEE]
-    - path: /api/leaves/**
+    - path: /leaves/new
+      methods: [GET, POST]
+      roles: [HR, EMPLOYEE]
+    - path: /leaves
+      methods: [GET]
+      roles: [HR]
+    - path: /leaves/**
       methods: [GET]
       roles: [HR, EMPLOYEE]
 
