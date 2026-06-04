@@ -9,9 +9,18 @@ public abstract class EmployeeException extends RuntimeException {
     private final String code;
 
     public EmployeeException(String message,
-                             HttpStatus status,
-                             String code) {
+                              HttpStatus status,
+                              String code) {
         super(message);
+        this.status = status;
+        this.code = code;
+    }
+
+    public EmployeeException(String message,
+                             HttpStatus status,
+                             String code,
+                             Throwable cause) {
+        super(message, cause);
         this.status = status;
         this.code = code;
     }

@@ -166,7 +166,7 @@ public class AuthService {
             return;
         }
 
-        refreshTokenMapper.revokeById(storedToken.getId());
+        refreshTokenMapper.revokeAllByUserId(storedToken.getUserId());
     }
 
     private String extractRefreshToken(RefreshRequest request) {

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in</title>
+    <link rel="stylesheet" th:href="@{/auth-assets/auth.css}">
+</head>
+<body>
+<main class="auth-shell">
+    <section class="auth-panel">
+        <div class="brand">
+            <span class="brand-mark">HR</span>
+            <div>
+                <h1>Sign in</h1>
+                <p>Access the HR management workspace.</p>
+            </div>
+        </div>
+
+        <div class="notice success" th:if="${param.registered}">Registration complete. Sign in with your new account.</div>
+        <div class="notice success" th:if="${param.logout}">You have been signed out.</div>
+        <div class="notice error" th:if="${formError}" th:text="${formError}">Invalid credentials</div>
+
+        <form method="post" th:action="@{/login}" th:object="${login}">
+            <div class="field">
+                <label for="usernameOrEmail">Username or email</label>
+                <input id="usernameOrEmail" th:field="*{usernameOrEmail}" autocomplete="username" autofocus>
+                <div class="field-error" th:if="${#fields.hasErrors('usernameOrEmail')}" th:errors="*{usernameOrEmail}"></div>
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+                <input id="password" type="password" th:field="*{password}" autocomplete="current-password">
+                <div class="field-error" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+            </div>
+            <button class="primary" type="submit">Sign in</button>
+        </form>
+
+        <p class="switch">No account? <a th:href="@{/register}">Create one</a></p>
+    </section>
+</main>
+</body>
+</html>

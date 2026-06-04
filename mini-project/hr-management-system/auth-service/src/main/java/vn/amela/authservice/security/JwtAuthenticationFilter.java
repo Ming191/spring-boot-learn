@@ -1,6 +1,7 @@
 package vn.amela.authservice.security;
 
 import io.jsonwebtoken.JwtException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import vn.amela.authservice.entity.enums.Role;
 
 import java.io.IOException;
 import java.util.List;
@@ -19,6 +21,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String AUTH_ERROR_ATTRIBUTE = "auth_error";
+    private static final String ACCESS_TOKEN_COOKIE = "HR_ACCESS_TOKEN";
     private static final String INVALID_TOKEN = "Invalid token";
     private static final String MISSING_CLAIMS = "Required JWT claims are missing";
 
@@ -31,14 +34,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String authorizationHeader = request.getHeader("Authorization");
-
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+        String token = resolveToken(request);
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        String token = authorizationHeader.substring(7).trim();
 
         try {
             if (token.isBlank() || !jwtService.isTokenValid(token)) {
@@ -49,10 +49,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             Long userId = jwtService.extractId(token);
             String username = jwtService.extractUsername(token);
-            String role = jwtService.extractRole(token);
+            Role role = jwtService.extractRole(token);
 
             if (username == null || username.isBlank()
-                || role == null || role.isBlank()) {
+                || role == null) {
 
                 rejectToken(request, MISSING_CLAIMS);
                 filterChain.doFilter(request, response);
@@ -60,19 +60,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             List<SimpleGrantedAuthority> authorities = List.of(
-                new SimpleGrantedAuthority("ROLE_" + role)
+                new SimpleGrantedAuthority("ROLE_" + role.name())
             );
 
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                    userId,
+                    username,
+                    role
+                );
 
                 UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
-                        username,
+                        authenticatedUser,
                         null,
                         authorities
                     );
-
-                authentication.setDetails(userId);
 
                 SecurityContextHolder.getContext()
                     .setAuthentication(authentication);
@@ -85,6 +88,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String resolveToken(HttpServletRequest request) {
+        String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7).trim();
+        }
+
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+
+        for (Cookie cookie : cookies) {
+            if (ACCESS_TOKEN_COOKIE.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+
+        return null;
     }
 
     private void rejectToken(HttpServletRequest request, String message) {

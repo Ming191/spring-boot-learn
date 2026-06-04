@@ -1,7 +1,5 @@
 package vn.amela.gateway.security;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
@@ -16,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import vn.amela.gateway.configuration.PreAuthRateLimitProperties;
 import vn.amela.gateway.dto.response.GatewayErrorResponse;
 
@@ -99,7 +99,7 @@ public class PreAuthenticationRateLimiterFilter implements GlobalFilter, Ordered
         try {
             byte[] body = objectMapper.writeValueAsBytes(errorResponse);
             return response.writeWith(Mono.just(response.bufferFactory().wrap(body)));
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             return response.setComplete();
         }
     }

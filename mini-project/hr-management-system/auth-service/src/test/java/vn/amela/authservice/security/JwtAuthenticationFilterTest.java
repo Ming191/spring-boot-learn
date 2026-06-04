@@ -11,6 +11,7 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
+import vn.amela.authservice.entity.enums.Role;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
@@ -55,14 +56,15 @@ class JwtAuthenticationFilterTest {
         when(jwtService.isTokenValid("token")).thenReturn(true);
         when(jwtService.extractId("token")).thenReturn(99L);
         when(jwtService.extractUsername("token")).thenReturn("hr_admin");
-        when(jwtService.extractRole("token")).thenReturn("HR");
+        when(jwtService.extractRole("token")).thenReturn(Role.HR);
 
         filter.doFilter(request, response, filterChain);
 
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         assertThat(authentication).isNotNull();
-        assertThat(authentication.getName()).isEqualTo("hr_admin");
-        assertThat(authentication.getDetails()).isEqualTo(99L);
+        assertThat(authentication.getName()).isEqualTo("AuthenticatedUser[userId=99, username=hr_admin, role=HR]");
+        assertThat(authentication.getPrincipal()).isEqualTo(new AuthenticatedUser(99L, "hr_admin", Role.HR));
+        assertThat(authentication.getDetails()).isNull();
         assertThat(authentication.getAuthorities())
             .extracting("authority")
             .containsExactly("ROLE_HR");
