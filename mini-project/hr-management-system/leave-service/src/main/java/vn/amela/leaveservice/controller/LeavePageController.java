@@ -90,6 +90,7 @@ public class LeavePageController {
         if (!model.containsAttribute("leaveForm")) {
             model.addAttribute("leaveForm", LeaveForm.empty());
         }
+        model.addAttribute("today", LocalDate.now());
         return "leave/form";
     }
 
@@ -103,6 +104,7 @@ public class LeavePageController {
         rejectInvalidDateRange(form, bindingResult);
         if (bindingResult.hasErrors()) {
             addSharedModel(model, user);
+            model.addAttribute("today", LocalDate.now());
             return "leave/form";
         }
         try {
@@ -113,6 +115,7 @@ public class LeavePageController {
         } catch (BusinessException ex) {
             model.addAttribute("error", ex.getMessage());
             addSharedModel(model, user);
+            model.addAttribute("today", LocalDate.now());
             return "leave/form";
         }
     }
@@ -185,6 +188,14 @@ public class LeavePageController {
                     "toDate",
                     "dateRange",
                     "To date must be greater than or equal to from date"
+            );
+        }
+
+        if (form.fromDate().isBefore(LocalDate.now())) {
+            bindingResult.rejectValue(
+                    "fromDate",
+                    "pastDate",
+                    "From date must not be in the past"
             );
         }
     }

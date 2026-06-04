@@ -41,6 +41,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     );
     private static final String LOGIN_PATH = "/login";
     private static final String REGISTER_PATH = "/register";
+    private static final String ROOT_PATH = "/";
     private static final String EMPLOYEES_PATH = "/employees";
     private static final String MY_LEAVE_PATH = "/leaves/my";
     private static final String AUTHENTICATION_REQUIRED = "Authentication is required";
@@ -60,14 +61,27 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         ServerWebExchange sanitizedExchange = stripInternalHeaders(exchange);
         ServerHttpRequest sanitizedRequest = sanitizedExchange.getRequest();
 
+        if (isRootPage(sanitizedRequest)) {
+            String token = resolveToken(sanitizedRequest);
+            if (token != null && !token.isBlank()) {
+                try {
+                    Claims claims = jwtService.extractClaims(token);
+                    String role = claims.get("role", String.class);
+                    return redirect(sanitizedExchange, homePath(role));
+                } catch (JwtException | IllegalArgumentException ignored) {
+                    // Invalid token - send user to login
+                }
+            }
+            return redirect(sanitizedExchange, LOGIN_PATH);
+        }
+
         if (isAuthPage(sanitizedRequest)) {
             String token = resolveToken(sanitizedRequest);
             if (token != null && !token.isBlank()) {
                 try {
                     Claims claims = jwtService.extractClaims(token);
                     String role = claims.get("role", String.class);
-                    String destination = "HR".equals(role) ? EMPLOYEES_PATH : MY_LEAVE_PATH;
-                    return redirect(sanitizedExchange, destination);
+                    return redirect(sanitizedExchange, homePath(role));
                 } catch (JwtException | IllegalArgumentException ignored) {
                     // Invalid token - let normal flow proceed to public page
                 }
@@ -157,6 +171,14 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         }
         String path = request.getURI().getPath();
         return LOGIN_PATH.equals(path) || REGISTER_PATH.equals(path);
+    }
+
+    private boolean isRootPage(ServerHttpRequest request) {
+        return request.getMethod() == HttpMethod.GET && ROOT_PATH.equals(request.getURI().getPath());
+    }
+
+    private String homePath(String role) {
+        return "HR".equals(role) ? EMPLOYEES_PATH : MY_LEAVE_PATH;
     }
 
     private Mono<Void> redirect(ServerWebExchange exchange, String location) {

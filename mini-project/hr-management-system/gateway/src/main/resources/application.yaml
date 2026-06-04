@@ -98,7 +98,7 @@ spring:
               order: 90
               uri: lb://LEAVE-SERVICE
               predicates:
-                - Path=/leaves,/leaves/**
+                - Path=/leaves,/leaves/**,/leave/css/**
               filters:
                 - name: RequestRateLimiter
                   args:
@@ -139,6 +139,7 @@ gateway:
     - /auth-assets/**
     - /assets/**
     - /css/**
+    - /leave/css/**
     - /js/**
     - /images/**
     - /error/**
@@ -191,7 +192,7 @@ gateway:
       roles: [HR, EMPLOYEE]
     - path: /leaves/new
       methods: [GET, POST]
-      roles: [HR, EMPLOYEE]
+      roles: [EMPLOYEE]
     - path: /leaves
       methods: [GET]
       roles: [HR]

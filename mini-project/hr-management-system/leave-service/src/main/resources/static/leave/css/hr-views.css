@@ -97,6 +97,10 @@ button.button {
     gap: 6px;
 }
 
+.field-full {
+    grid-column: 1 / -1;
+}
+
 label {
     font-size: 13px;
     color: #475467;
@@ -115,18 +119,32 @@ textarea {
 }
 
 textarea {
-    min-height: 110px;
+    display: block;
+    min-height: 150px;
     resize: vertical;
 }
 
 .form-panel {
-    padding: 22px;
+    padding: 28px;
+}
+
+.alert {
+    border-radius: 10px;
+    font-weight: 700;
+    margin-bottom: 18px;
+    padding: 12px 14px;
+}
+
+.error-alert {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b42318;
 }
 
 .form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 16px;
+    gap: 18px;
 }
 
 .form-actions {

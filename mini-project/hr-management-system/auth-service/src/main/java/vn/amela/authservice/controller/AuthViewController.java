@@ -115,6 +115,14 @@ public class AuthViewController {
         return redirectTo("/login?logout");
     }
 
+    @GetMapping("/logout")
+    public ResponseEntity<Void> logoutFromLink(
+        @CookieValue(value = REFRESH_TOKEN_COOKIE, required = false) String refreshToken,
+        HttpServletResponse response
+    ) {
+        return logout(refreshToken, response);
+    }
+
     private ResponseEntity<Void> redirectTo(String location) {
         return ResponseEntity.status(HttpStatus.SEE_OTHER)
             .location(URI.create(location))

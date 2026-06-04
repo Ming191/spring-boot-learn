@@ -236,8 +236,8 @@ public class LeaveServiceImpl implements LeaveService {
     }
 
     private void requireLeaveCreatorRole(CurrentUser user) {
-        if (!user.isHr() && !user.isEmployee()) {
-            throw new ForbiddenActionException("Only HR or Employee can create leave requests");
+        if (user == null || !user.isEmployee()) {
+            throw new ForbiddenActionException("Only Employee can create leave requests");
         }
     }
 

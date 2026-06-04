@@ -1,5 +1,10 @@
 server:
   port: 8084
+  tomcat:
+    use-relative-redirects: true
+  servlet:
+    session:
+      tracking-modes: cookie
 
 spring:
   application:

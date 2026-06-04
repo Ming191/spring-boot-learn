@@ -14,6 +14,8 @@
     </header>
 
     <form class="form-panel" method="post" th:action="@{/leaves/new}" th:object="${leaveForm}">
+        <div class="alert error-alert" th:if="${error}" th:text="${error}"></div>
+
         <div class="form-grid">
             <div class="field">
                 <label>Leave type</label>
@@ -26,17 +28,17 @@
 
             <div class="field">
                 <label>From date</label>
-                <input type="date" th:field="*{fromDate}">
+                <input type="date" th:field="*{fromDate}" th:min="${today}">
                 <div class="error" th:if="${#fields.hasErrors('fromDate')}" th:errors="*{fromDate}"></div>
             </div>
 
             <div class="field">
                 <label>To date</label>
-                <input type="date" th:field="*{toDate}">
+                <input type="date" th:field="*{toDate}" th:min="${today}">
                 <div class="error" th:if="${#fields.hasErrors('toDate')}" th:errors="*{toDate}"></div>
             </div>
 
-            <div class="field">
+            <div class="field field-full">
                 <label>Reason</label>
                 <textarea th:field="*{reason}" placeholder="Reason for leave"></textarea>
                 <div class="error" th:if="${#fields.hasErrors('reason')}" th:errors="*{reason}"></div>
