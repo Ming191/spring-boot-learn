@@ -1,5 +1,8 @@
 server:
   port: 8083
+  forward-headers-strategy: framework
+  tomcat:
+    use-relative-redirects: true
 
 spring:
   application:
