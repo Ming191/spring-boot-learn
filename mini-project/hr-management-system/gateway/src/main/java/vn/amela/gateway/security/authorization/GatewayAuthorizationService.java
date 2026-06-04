@@ -33,7 +33,7 @@ public class GatewayAuthorizationService {
             .filter(rule -> matches(rule, method, path))
             .findFirst()
             .map(rule -> allows(rule, role))
-            .orElse(true);
+            .orElse(false);
     }
 
     private boolean matches(

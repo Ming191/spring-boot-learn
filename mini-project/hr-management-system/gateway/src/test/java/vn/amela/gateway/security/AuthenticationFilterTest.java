@@ -107,7 +107,7 @@ class AuthenticationFilterTest {
     @DisplayName("protected path with valid token forwards trusted identity headers")
     void protectedPathWithValidTokenForwardsIdentityHeaders() {
         MockServerWebExchange exchange = MockServerWebExchange.from(
-            MockServerHttpRequest.get("/api/employees")
+            MockServerHttpRequest.get("/leaves/my")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE))
                 .header("X-User-Id", "999")
                 .header("X-Username", "forged")
@@ -121,6 +121,26 @@ class AuthenticationFilterTest {
         assertThat(headers.getFirst("X-User-Id")).isEqualTo("1");
         assertThat(headers.getFirst("X-Username")).isEqualTo("emp");
         assertThat(headers.getFirst("X-Role")).isEqualTo("EMPLOYEE");
+    }
+
+    @Test
+    @DisplayName("unmatched protected path is denied by default")
+    void unmatchedProtectedPathIsDeniedByDefault() throws Exception {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/unknown")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken(AUDIENCE, "HR"))
+        );
+        CapturingChain chain = new CapturingChain();
+
+        filter.filter(exchange, chain).block();
+
+        assertThat(chain.exchange()).isNull();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        JsonNode body = objectMapper.readTree(exchange.getResponse().getBodyAsString().block());
+        assertThat(body.get("status").asInt()).isEqualTo(403);
+        assertThat(body.get("code").asText()).isEqualTo("FORBIDDEN");
+        assertThat(body.get("path").asText()).isEqualTo("/unknown");
     }
 
     @Test
