@@ -14,6 +14,8 @@ import vn.amela.leaveservice.dto.request.ReviewLeaveRequest;
 import vn.amela.leaveservice.dto.response.EmployeeSnapshotResponse;
 import vn.amela.leaveservice.dto.response.LeaveResponse;
 import vn.amela.leaveservice.dto.response.PageResponse;
+import vn.amela.leaveservice.entity.LeaveApprovedPayload;
+import vn.amela.leaveservice.entity.LeaveCancelledPayload;
 import vn.amela.leaveservice.entity.LeaveRequest;
 import vn.amela.leaveservice.entity.LeaveRejectedPayload;
 import vn.amela.leaveservice.entity.OutboxEvent;
@@ -58,7 +60,7 @@ class LeaveServiceImplTest {
         when(leaveMapper.findById(100L)).thenReturn(Optional.of(pending), Optional.of(cancelled));
         when(employeeSnapshotService.getEmployeeSnapshotByAuthUserId(2L)).thenReturn(employeeSnapshot());
         when(leaveMapper.cancel(100L, 10L)).thenReturn(1);
-        when(objectMapper.writeValueAsString(cancelled)).thenReturn("{json}");
+        when(objectMapper.writeValueAsString(any())).thenReturn("{json}");
 
         LeaveResponse response = leaveService.cancel(100L, employeeUser());
 
@@ -70,6 +72,10 @@ class LeaveServiceImplTest {
         assertThat(eventCaptor.getValue().getAggregateType()).isEqualTo("LeaveRequest");
         assertThat(eventCaptor.getValue().getEventType()).isEqualTo("leave.cancelled");
         assertThat(eventCaptor.getValue().getAggregateId()).isEqualTo(100L);
+
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(objectMapper).writeValueAsString(payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue()).isInstanceOf(LeaveCancelledPayload.class);
     }
 
     @Test
@@ -171,7 +177,7 @@ class LeaveServiceImplTest {
         approved.setReviewedAt(LocalDateTime.of(2026, 6, 2, 9, 0));
         when(leaveMapper.findById(100L)).thenReturn(Optional.of(pending), Optional.of(approved));
         when(leaveMapper.approve(any(), any(), any(), any())).thenReturn(1);
-        when(objectMapper.writeValueAsString(approved)).thenReturn("{json}");
+        when(objectMapper.writeValueAsString(any())).thenReturn("{json}");
 
         LeaveResponse response = leaveService.approve(100L, new ReviewLeaveRequest("Approved"), hrUser());
 
@@ -183,6 +189,10 @@ class LeaveServiceImplTest {
         verify(outboxEventMapper).insert(eventCaptor.capture());
         assertThat(eventCaptor.getValue().getEventType()).isEqualTo("leave.approved");
         assertThat(eventCaptor.getValue().getAggregateId()).isEqualTo(100L);
+
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(objectMapper).writeValueAsString(payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue()).isInstanceOf(LeaveApprovedPayload.class);
     }
 
     @Test

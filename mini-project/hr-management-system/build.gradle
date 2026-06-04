@@ -32,7 +32,7 @@ subprojects {
 
     dependencies {
 
-        if (project.name != 'gateway') {
+        if (project.name != 'gateway' && project.name != 'notification-service') {
             implementation 'org.springframework.boot:spring-boot-starter-web'
         }
         implementation 'org.springframework.boot:spring-boot-starter-actuator'

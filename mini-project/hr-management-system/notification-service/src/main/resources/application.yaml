@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: notification-service
+  main:
+    web-application-type: none
+
+  datasource:
+    url: ${NOTIFICATION_DB_URL:jdbc:mysql://localhost:3306/db_notification}
+    username: ${NOTIFICATION_DB_USERNAME:root}
+    password: ${NOTIFICATION_DB_PASSWORD:root}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: notification-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: vn.amela.notificationservice.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="vn.amela.notificationservice.mapper.NotificationMapper">
+
+    <insert id="insertIgnore">
+        INSERT INTO notifications (
+            event_id,
+            event_type,
+            aggregate_type,
+            aggregate_id,
+            recipient_role,
+            recipient_employee_id,
+            message,
+            payload
+        ) VALUES (
+            #{eventId},
+            #{eventType},
+            #{aggregateType},
+            #{aggregateId},
+            #{recipientRole},
+            #{recipientEmployeeId},
+            #{message},
+            CAST(#{payload} AS JSON)
+        )
+        ON DUPLICATE KEY UPDATE event_id = event_id
+    </insert>
+</mapper>
