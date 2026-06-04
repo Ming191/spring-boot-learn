@@ -7,6 +7,6 @@ import vn.amela.leaveservice.dto.response.EmployeeSnapshotResponse;
 @FeignClient(name = "employee-service")
 public interface EmployeeClient {
 
-    @GetMapping("/api/employees/by-auth-user/{authUserId}")
+    @GetMapping("/internal/employees/by-auth-user/{authUserId}")
     EmployeeSnapshotResponse findByAuthUserId(@PathVariable Long authUserId);
 }

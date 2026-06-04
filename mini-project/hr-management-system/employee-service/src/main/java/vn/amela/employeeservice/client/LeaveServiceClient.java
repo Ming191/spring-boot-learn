@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(name = "leave-service", fallback = LeaveServiceClientFallback.class)
 public interface LeaveServiceClient {
 
-    @GetMapping("/api/leaves/pending-count")
+    @GetMapping("/internal/leaves/pending-count")
     int countPendingLeavesByEmployeeId(@RequestParam("employeeId") Long employeeId);
 
     default boolean hasPendingLeavesByEmployeeId(Long employeeId) {
