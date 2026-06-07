@@ -24,8 +24,8 @@ public record CreateEmployeeRequest(
         String position,
         @NotNull(message = "Department id is required")
         Long departmentId,
-        @NotNull(message = "Auth user id is required")
-        Long authUserId,
+        @NotBlank(message = "Auth username or email is required")
+        String authUsernameOrEmail,
         @NotNull(message = "Salary is required")
         @DecimalMin(value = "0.01", message = "Salary must be positive")
         BigDecimal salary,

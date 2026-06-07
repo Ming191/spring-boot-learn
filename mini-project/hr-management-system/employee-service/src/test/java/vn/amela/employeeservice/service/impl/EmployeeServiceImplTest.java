@@ -9,11 +9,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import vn.amela.employeeservice.client.AuthUserClient;
 import vn.amela.employeeservice.client.LeaveServiceClient;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
 import vn.amela.employeeservice.dto.request.EmployeeFilterRequest;
 import vn.amela.employeeservice.dto.request.UpdateContactRequest;
 import vn.amela.employeeservice.dto.request.UpdateEmployeeRequest;
+import vn.amela.employeeservice.dto.response.AuthUserResponse;
 import vn.amela.employeeservice.dto.response.EmployeeResponse;
 import vn.amela.employeeservice.dto.response.PageResponse;
 import vn.amela.employeeservice.entity.Department;
@@ -51,6 +53,9 @@ class EmployeeServiceImplTest {
     private DepartmentMapper departmentMapper;
 
     @Mock
+    private AuthUserClient authUserClient;
+
+    @Mock
     private LeaveServiceClient leaveServiceClient;
 
     @Mock
@@ -65,6 +70,7 @@ class EmployeeServiceImplTest {
         employeeService = new EmployeeServiceImpl(
                 employeeMapper,
                 departmentMapper,
+                authUserClient,
                 leaveServiceClient,
                 outboxEventMapper,
                 objectMapper
@@ -78,6 +84,7 @@ class EmployeeServiceImplTest {
         Employee createdEmployee = createdEmployee();
 
         when(departmentMapper.findById(1L)).thenReturn(department);
+        when(authUserClient.findByUsernameOrEmail("new.employee@company.com")).thenReturn(authUser());
         doAnswer(invocation -> {
             Employee employee = invocation.getArgument(0);
             employee.setId(10L);
@@ -92,6 +99,7 @@ class EmployeeServiceImplTest {
         Employee insertedEmployee = employeeCaptor.getValue();
         assertThat(insertedEmployee.getEmployeeCode()).isEqualTo("EMP010");
         assertThat(insertedEmployee.getEmail()).isEqualTo("new.employee@company.com");
+        assertThat(insertedEmployee.getAuthUserId()).isEqualTo(99L);
         assertThat(insertedEmployee.getStatus()).isEqualTo(EmployeeStatus.ACTIVE);
 
         ArgumentCaptor<OutboxEvent> outboxCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
@@ -130,6 +138,7 @@ class EmployeeServiceImplTest {
     @Test
     void createRejectsAuthUserAlreadyAssignedToAnotherEmployee() {
         when(departmentMapper.findById(1L)).thenReturn(activeDepartment(1L, "Engineering"));
+        when(authUserClient.findByUsernameOrEmail("new.employee@company.com")).thenReturn(authUser());
         when(employeeMapper.findByAuthUserId(99L)).thenReturn(createdEmployee());
 
         assertThatThrownBy(() -> employeeService.create(validCreateRequest()))
@@ -444,10 +453,21 @@ class EmployeeServiceImplTest {
                 " 0900000000 ",
                 " Backend Developer ",
                 1L,
-                99L,
+                " new.employee@company.com ",
                 new BigDecimal("12000000.00"),
                 LocalDate.of(2026, 5, 18)
         );
+    }
+
+    private AuthUserResponse authUser() {
+        return AuthUserResponse.builder()
+                .id(99L)
+                .username("new.employee")
+                .email("new.employee@company.com")
+                .fullName("New Employee")
+                .role("EMPLOYEE")
+                .isActive(true)
+                .build();
     }
 
     private UpdateEmployeeRequest updateEmployeeRequest(Long departmentId, BigDecimal salary) {

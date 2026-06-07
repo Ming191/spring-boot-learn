@@ -18,6 +18,11 @@ public class DepartmentViewController {
 
     private final DepartmentService departmentService;
 
+    @ModelAttribute("isHr")
+    public boolean isHr(@RequestHeader(value = "X-Role", required = false) String userRole) {
+        return "HR".equalsIgnoreCase(userRole);
+    }
+
     @GetMapping
     public String index(Model model) {
         model.addAttribute("departments", departmentService.listAll());

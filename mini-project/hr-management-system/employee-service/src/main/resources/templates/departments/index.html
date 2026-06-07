@@ -1,63 +1,82 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Departments</title>
-    <link rel="stylesheet" th:href="@{/css/hr-views.css}">
-</head>
-<body>
-<main class="shell">
-    <header class="topbar">
+    <link rel="stylesheet" th:href="@{/css/hr-views.css}" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
         <div>
-            <h1>Departments</h1>
-            <div class="muted" th:text="${#lists.size(departments)} + ' departments'">0 departments</div>
+          <h1>Departments</h1>
+          <div
+            class="muted"
+            th:text="${#lists.size(departments)} + ' departments'"
+          >
+            0 departments
+          </div>
         </div>
-        <nav class="nav">
-            <a class="button secondary" th:href="@{/employees}">Employees</a>
-            <a class="button" th:href="@{/departments/create}">New department</a>
-        </nav>
-    </header>
+        <div class="actions">
+          <div th:replace="~{fragments/nav :: mainNav}"></div>
+          <a class="button" th:href="@{/departments/create}">New department</a>
+        </div>
+      </header>
 
-    <section class="panel">
-        <div class="empty muted" th:if="${#lists.isEmpty(departments)}">No departments available.</div>
-        <div class="table-wrap" th:unless="${#lists.isEmpty(departments)}">
-            <table>
-                <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Description</th>
-                    <th>Manager ID</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="department : ${departments}">
-                    <td th:text="${department.name}">Engineering</td>
-                    <td th:text="${department.description ?: '-'}">Description</td>
-                    <td th:text="${department.managerId ?: '-'}">1</td>
-                    <td>
-                        <span class="status"
-                              th:classappend="${department.isActive} ? 'active' : 'inactive'"
-                              th:text="${department.isActive} ? 'ACTIVE' : 'INACTIVE'">ACTIVE</span>
-                    </td>
-                    <td th:text="${department.createdAt ?: '-'}">2026-01-01T09:00</td>
-                    <td>
-                        <div class="actions">
-                            <a class="button secondary" th:href="@{/departments/{id}/edit(id=${department.id})}">Edit</a>
-                            <form method="post" th:action="@{/departments/{id}/delete(id=${department.id})}"
-                                  th:if="${department.isActive}">
-                                <button class="button danger" type="submit">Deactivate</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+      <section class="panel">
+        <div class="empty muted" th:if="${#lists.isEmpty(departments)}">
+          No departments available.
         </div>
-    </section>
-</main>
-</body>
+        <div class="table-wrap" th:unless="${#lists.isEmpty(departments)}">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="department : ${departments}">
+                <td th:text="${department.name}">Engineering</td>
+                <td th:text="${department.description ?: '-'}">Description</td>
+                <td>
+                  <span
+                    class="status"
+                    th:classappend="${department.isActive} ? 'active' : 'inactive'"
+                    th:text="${department.isActive} ? 'ACTIVE' : 'INACTIVE'"
+                    >ACTIVE</span
+                  >
+                </td>
+                <td th:text="${department.createdAt ?: '-'}">
+                  2026-01-01T09:00
+                </td>
+                <td>
+                  <div class="actions">
+                    <a
+                      class="button secondary"
+                      th:href="@{/departments/{id}/edit(id=${department.id})}"
+                      >Edit</a
+                    >
+                    <form
+                      method="post"
+                      th:action="@{/departments/{id}/delete(id=${department.id})}"
+                      th:if="${department.isActive}"
+                    >
+                      <button class="button danger" type="submit">
+                        Deactivate
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
 </html>

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <nav class="nav" th:fragment="mainNav">
+      <a class="button secondary" th:if="${isHr}" th:href="@{/employees}"
+        >Employees</a
+      >
+      <a class="button secondary" th:if="${isHr}" th:href="@{/departments}"
+        >Departments</a
+      >
+      <a class="button secondary" th:if="${isHr}" th:href="@{/leaves}"
+        >Leaves</a
+      >
+      <a class="button secondary" th:unless="${isHr}" th:href="@{/leaves/my}"
+        >My leaves</a
+      >
+      <a class="button secondary" th:href="@{/logout}">Logout</a>
+    </nav>
+  </body>
+</html>

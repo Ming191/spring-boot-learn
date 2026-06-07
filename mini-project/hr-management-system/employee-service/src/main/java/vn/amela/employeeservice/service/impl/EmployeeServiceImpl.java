@@ -1,14 +1,17 @@
 package vn.amela.employeeservice.service.impl;
 
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.amela.employeeservice.client.AuthUserClient;
 import vn.amela.employeeservice.client.LeaveServiceClient;
 import vn.amela.employeeservice.dto.request.CreateEmployeeRequest;
 import vn.amela.employeeservice.dto.request.EmployeeFilterRequest;
 import vn.amela.employeeservice.dto.request.UpdateContactRequest;
 import vn.amela.employeeservice.dto.request.UpdateEmployeeRequest;
+import vn.amela.employeeservice.dto.response.AuthUserResponse;
 import vn.amela.employeeservice.dto.response.EmployeeResponse;
 import vn.amela.employeeservice.dto.response.PageResponse;
 import vn.amela.employeeservice.entity.Department;
@@ -45,6 +48,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     protected final EmployeeMapper employeeMapper;
     protected final DepartmentMapper departmentMapper;
+    protected final AuthUserClient authUserClient;
     protected final LeaveServiceClient leaveServiceClient;
     protected final OutboxEventMapper outboxEventMapper;
     protected final ObjectMapper objectMapper;
@@ -58,9 +62,10 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         ensureEmployeeCodeAvailable(employeeCode);
         ensureEmailAvailable(email);
-        ensureAuthUserAvailable(request.authUserId());
+        AuthUserResponse authUser = resolveAuthUser(request.authUsernameOrEmail());
+        ensureAuthUserAvailable(authUser.getId());
 
-        Employee employee = buildEmployee(request, employeeCode, email);
+        Employee employee = buildEmployee(request, employeeCode, email, authUser.getId());
 
         try {
             employeeMapper.insert(employee);
@@ -283,6 +288,20 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
     }
 
+    private AuthUserResponse resolveAuthUser(String usernameOrEmail) {
+        String normalizedUsernameOrEmail = normalizeRequiredText(usernameOrEmail, "Auth username or email");
+        AuthUserResponse authUser;
+        try {
+            authUser = authUserClient.findByUsernameOrEmail(normalizedUsernameOrEmail);
+        } catch (FeignException.NotFound e) {
+            throw new ResourceNotFoundException("Auth user not found");
+        }
+        if (authUser == null || authUser.getId() == null) {
+            throw new ResourceNotFoundException("Auth user not found");
+        }
+        return authUser;
+    }
+
     private Employee loadCreatedEmployee(Long employeeId) {
         Employee createdEmployee = employeeMapper.findById(employeeId);
         if (createdEmployee == null) {
@@ -370,7 +389,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         outboxEventMapper.insert(event);
     }
 
-    private Employee buildEmployee(CreateEmployeeRequest request, String employeeCode, String email) {
+    private Employee buildEmployee(CreateEmployeeRequest request, String employeeCode, String email, Long authUserId) {
         return Employee.builder()
                 .employeeCode(employeeCode)
                 .fullName(normalizeRequiredText(request.fullName(), "Full name"))
@@ -378,7 +397,7 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .phone(normalizeRequiredText(request.phone(), "Phone"))
                 .position(normalizeRequiredText(request.position(), "Position"))
                 .departmentId(request.departmentId())
-                .authUserId(request.authUserId())
+                .authUserId(authUserId)
                 .salary(request.salary())
                 .startDate(request.startDate())
                 .status(EmployeeStatus.ACTIVE)

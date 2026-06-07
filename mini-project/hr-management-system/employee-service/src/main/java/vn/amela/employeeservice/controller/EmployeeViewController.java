@@ -25,6 +25,11 @@ public class EmployeeViewController {
     private final EmployeeService employeeService;
     private final DepartmentService departmentService;
 
+    @ModelAttribute("isHr")
+    public boolean isHr(@RequestHeader(value = ROLE_HEADER, required = false) String userRole) {
+        return "HR".equalsIgnoreCase(userRole);
+    }
+
     @GetMapping
     public String index(@ModelAttribute EmployeeFilterRequest filter, Model model) {
         PageResponse<EmployeeResponse> page = employeeService.search(filter);

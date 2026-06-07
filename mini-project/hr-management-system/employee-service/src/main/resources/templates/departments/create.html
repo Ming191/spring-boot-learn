@@ -1,34 +1,50 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Create Department</title>
-    <link rel="stylesheet" th:href="@{/css/hr-views.css}">
-</head>
-<body>
-<main class="shell">
-    <header class="topbar">
+    <link rel="stylesheet" th:href="@{/css/hr-views.css}" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
         <h1>Create Department</h1>
-        <a class="button secondary" th:href="@{/departments}">Back</a>
-    </header>
-
-    <form class="form-panel" method="post" th:action="@{/departments}" th:object="${department}">
-        <div class="field">
-            <label for="name">Name</label>
-            <input id="name" th:field="*{name}">
-            <div class="error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
-        </div>
-        <div class="field">
-            <label for="description">Description</label>
-            <textarea id="description" th:field="*{description}"></textarea>
-            <div class="error" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></div>
-        </div>
         <div class="actions">
-            <button class="button" type="submit">Create</button>
-            <a class="button secondary" th:href="@{/departments}">Cancel</a>
+          <div th:replace="~{fragments/nav :: mainNav}"></div>
+          <a class="button secondary" th:href="@{/departments}">Back</a>
         </div>
-    </form>
-</main>
-</body>
+      </header>
+
+      <form
+        class="form-panel"
+        method="post"
+        th:action="@{/departments}"
+        th:object="${department}"
+      >
+        <div class="field">
+          <label for="name">Name</label>
+          <input id="name" th:field="*{name}" />
+          <div
+            class="error"
+            th:if="${#fields.hasErrors('name')}"
+            th:errors="*{name}"
+          ></div>
+        </div>
+        <div class="field">
+          <label for="description">Description</label>
+          <textarea id="description" th:field="*{description}"></textarea>
+          <div
+            class="error"
+            th:if="${#fields.hasErrors('description')}"
+            th:errors="*{description}"
+          ></div>
+        </div>
+        <div class="actions form-actions">
+          <button class="button" type="submit">Create</button>
+          <a class="button secondary" th:href="@{/departments}">Cancel</a>
+        </div>
+      </form>
+    </main>
+  </body>
 </html>

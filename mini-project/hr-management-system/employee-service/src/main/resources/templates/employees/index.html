@@ -1,148 +1,262 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Employees</title>
-    <link rel="stylesheet" th:href="@{/css/hr-views.css}">
-</head>
-<body>
-<main class="shell">
-    <header class="topbar">
+    <link rel="stylesheet" th:href="@{/css/hr-views.css}" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
         <div>
-            <h1>Employees</h1>
-            <div class="muted" th:text="${page.totalElements} + ' employees found'">0 employees found</div>
+          <h1>Employees</h1>
+          <div
+            class="muted"
+            th:text="${page.totalElements} + ' employees found'"
+          >
+            0 employees found
+          </div>
         </div>
-        <nav class="nav">
-            <a class="button secondary" th:href="@{/departments}">Departments</a>
-            <a class="button" th:href="@{/employees/create}">New employee</a>
-        </nav>
-    </header>
-
-    <form class="toolbar" method="get" th:action="@{/employees}">
-        <div class="field">
-            <label for="likeName">Name</label>
-            <input id="likeName" name="likeName" type="search" th:value="${filter.likeName}" placeholder="Search by name">
-        </div>
-        <div class="field">
-            <label for="departmentId">Department</label>
-            <select id="departmentId" name="departmentId">
-                <option value="">All departments</option>
-                <option th:each="department : ${departments}"
-                        th:value="${department.id}"
-                        th:selected="${filter.departmentId != null and filter.departmentId == department.id}"
-                        th:text="${department.name}">Engineering</option>
-            </select>
-        </div>
-        <div class="field">
-            <label for="position">Position</label>
-            <input id="position" name="position" th:value="${filter.position}" placeholder="Position">
-        </div>
-        <div class="field">
-            <label for="status">Status</label>
-            <select id="status" name="status">
-                <option value="">All statuses</option>
-                <option value="ACTIVE" th:selected="${filter.status != null and filter.status.name() == 'ACTIVE'}">Active</option>
-                <option value="INACTIVE" th:selected="${filter.status != null and filter.status.name() == 'INACTIVE'}">Inactive</option>
-                <option value="ON_LEAVE" th:selected="${filter.status != null and filter.status.name() == 'ON_LEAVE'}">On leave</option>
-            </select>
-        </div>
-        <div class="field">
-            <label for="startDateFrom">Start from</label>
-            <input id="startDateFrom" name="startDateFrom" type="date" th:value="${filter.startDateFrom}">
-        </div>
-        <div class="field">
-            <label for="startDateTo">Start to</label>
-            <input id="startDateTo" name="startDateTo" type="date" th:value="${filter.startDateTo}">
-        </div>
-        <div class="field">
-            <label for="sortBy">Sort by</label>
-            <select id="sortBy" name="sortBy">
-                <option value="createdAt" th:selected="${filter.sortBy == null or filter.sortBy == 'createdAt'}">Created date</option>
-                <option value="employeeCode" th:selected="${filter.sortBy == 'employeeCode'}">Code</option>
-                <option value="fullName" th:selected="${filter.sortBy == 'fullName'}">Name</option>
-                <option value="email" th:selected="${filter.sortBy == 'email'}">Email</option>
-                <option value="position" th:selected="${filter.sortBy == 'position'}">Position</option>
-                <option value="departmentId" th:selected="${filter.sortBy == 'departmentId'}">Department</option>
-                <option value="salary" th:selected="${filter.sortBy == 'salary'}">Salary</option>
-                <option value="startDate" th:selected="${filter.sortBy == 'startDate'}">Start date</option>
-                <option value="status" th:selected="${filter.sortBy == 'status'}">Status</option>
-            </select>
-        </div>
-        <div class="field">
-            <label for="sortDirection">Direction</label>
-            <select id="sortDirection" name="sortDirection">
-                <option value="desc" th:selected="${filter.sortDirection == null or !#strings.equalsIgnoreCase(filter.sortDirection, 'asc')}">Desc</option>
-                <option value="asc" th:selected="${#strings.equalsIgnoreCase(filter.sortDirection, 'asc')}">Asc</option>
-            </select>
-        </div>
-        <input type="hidden" name="page" value="0">
-        <input type="hidden" name="size" th:value="${page.size}">
         <div class="actions">
-            <button class="button" type="submit">Apply</button>
-            <a class="button secondary" th:href="@{/employees}">Reset</a>
+          <div th:replace="~{fragments/nav :: mainNav}"></div>
+          <a class="button" th:href="@{/employees/create}">New employee</a>
         </div>
-    </form>
+      </header>
 
-    <section class="panel">
-        <div class="empty muted" th:if="${#lists.isEmpty(employees)}">No employees match the current filters.</div>
+      <form class="toolbar" method="get" th:action="@{/employees}">
+        <div class="field">
+          <label for="likeName">Name</label>
+          <input
+            id="likeName"
+            name="likeName"
+            type="search"
+            th:value="${filter.likeName}"
+            placeholder="Search by name"
+          />
+        </div>
+        <div class="field">
+          <label for="departmentId">Department</label>
+          <select id="departmentId" name="departmentId">
+            <option value="">All departments</option>
+            <option
+              th:each="department : ${departments}"
+              th:value="${department.id}"
+              th:selected="${filter.departmentId != null and filter.departmentId == department.id}"
+              th:text="${department.name}"
+            >
+              Engineering
+            </option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="position">Position</label>
+          <input
+            id="position"
+            name="position"
+            th:value="${filter.position}"
+            placeholder="Position"
+          />
+        </div>
+        <div class="field">
+          <label for="status">Status</label>
+          <select id="status" name="status">
+            <option value="">All statuses</option>
+            <option
+              value="ACTIVE"
+              th:selected="${filter.status != null and filter.status.name() == 'ACTIVE'}"
+            >
+              Active
+            </option>
+            <option
+              value="INACTIVE"
+              th:selected="${filter.status != null and filter.status.name() == 'INACTIVE'}"
+            >
+              Inactive
+            </option>
+            <option
+              value="ON_LEAVE"
+              th:selected="${filter.status != null and filter.status.name() == 'ON_LEAVE'}"
+            >
+              On leave
+            </option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="startDateFrom">Start from</label>
+          <input
+            id="startDateFrom"
+            name="startDateFrom"
+            type="date"
+            th:value="${filter.startDateFrom}"
+          />
+        </div>
+        <div class="field">
+          <label for="startDateTo">Start to</label>
+          <input
+            id="startDateTo"
+            name="startDateTo"
+            type="date"
+            th:value="${filter.startDateTo}"
+          />
+        </div>
+        <div class="field">
+          <label for="sortBy">Sort by</label>
+          <select id="sortBy" name="sortBy">
+            <option
+              value="createdAt"
+              th:selected="${filter.sortBy == null or filter.sortBy == 'createdAt'}"
+            >
+              Created date
+            </option>
+            <option
+              value="employeeCode"
+              th:selected="${filter.sortBy == 'employeeCode'}"
+            >
+              Code
+            </option>
+            <option
+              value="fullName"
+              th:selected="${filter.sortBy == 'fullName'}"
+            >
+              Name
+            </option>
+            <option value="email" th:selected="${filter.sortBy == 'email'}">
+              Email
+            </option>
+            <option
+              value="position"
+              th:selected="${filter.sortBy == 'position'}"
+            >
+              Position
+            </option>
+            <option
+              value="departmentId"
+              th:selected="${filter.sortBy == 'departmentId'}"
+            >
+              Department
+            </option>
+            <option value="salary" th:selected="${filter.sortBy == 'salary'}">
+              Salary
+            </option>
+            <option
+              value="startDate"
+              th:selected="${filter.sortBy == 'startDate'}"
+            >
+              Start date
+            </option>
+            <option value="status" th:selected="${filter.sortBy == 'status'}">
+              Status
+            </option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sortDirection">Direction</label>
+          <select id="sortDirection" name="sortDirection">
+            <option
+              value="desc"
+              th:selected="${filter.sortDirection == null or !#strings.equalsIgnoreCase(filter.sortDirection, 'asc')}"
+            >
+              Desc
+            </option>
+            <option
+              value="asc"
+              th:selected="${#strings.equalsIgnoreCase(filter.sortDirection, 'asc')}"
+            >
+              Asc
+            </option>
+          </select>
+        </div>
+        <input type="hidden" name="page" value="0" />
+        <input type="hidden" name="size" th:value="${page.size}" />
+        <div class="actions form-actions">
+          <button class="button" type="submit">Apply</button>
+          <a class="button secondary" th:href="@{/employees}">Reset</a>
+        </div>
+      </form>
+
+      <section class="panel">
+        <div class="empty muted" th:if="${#lists.isEmpty(employees)}">
+          No employees match the current filters.
+        </div>
         <div class="table-wrap" th:unless="${#lists.isEmpty(employees)}">
-            <table>
-                <thead>
-                <tr>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Position</th>
-                    <th>Department</th>
-                    <th>Status</th>
-                    <th>Start date</th>
-                    <th>Salary</th>
-                    <th>Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="employee : ${employees}">
-                    <td th:text="${employee.employeeCode}">EMP001</td>
-                    <td th:text="${employee.fullName}">Name</td>
-                    <td th:text="${employee.email}">email@example.com</td>
-                    <td th:text="${employee.position}">Developer</td>
-                    <td th:text="${employee.departmentName ?: '-'}">Engineering</td>
-                    <td>
-                        <span class="status"
-                              th:classappend="${employee.status.name().toLowerCase()}"
-                              th:text="${employee.status}">ACTIVE</span>
-                    </td>
-                    <td th:text="${employee.startDate}">2026-01-01</td>
-                    <td th:text="${employee.salary}">1000.00</td>
-                    <td>
-                        <div class="actions">
-                            <a class="button secondary" th:href="@{/employees/{id}/edit(id=${employee.id})}">Edit</a>
-                            <form method="post" th:action="@{/employees/{id}/deactivate(id=${employee.id})}"
-                                  th:if="${employee.status.name() == 'ACTIVE'}">
-                                <button class="button danger" type="submit">Deactivate</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Position</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Start date</th>
+                <th>Salary</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="employee : ${employees}">
+                <td th:text="${employee.employeeCode}">EMP001</td>
+                <td th:text="${employee.fullName}">Name</td>
+                <td th:text="${employee.email}">email@example.com</td>
+                <td th:text="${employee.position}">Developer</td>
+                <td th:text="${employee.departmentName ?: '-'}">Engineering</td>
+                <td>
+                  <span
+                    class="status"
+                    th:classappend="${employee.status.name().toLowerCase()}"
+                    th:text="${employee.status}"
+                    >ACTIVE</span
+                  >
+                </td>
+                <td th:text="${employee.startDate}">2026-01-01</td>
+                <td th:text="${employee.salary}">1000.00</td>
+                <td>
+                  <div class="actions">
+                    <a
+                      class="button secondary"
+                      th:href="@{/employees/{id}/edit(id=${employee.id})}"
+                      >Edit</a
+                    >
+                    <form
+                      method="post"
+                      th:action="@{/employees/{id}/deactivate(id=${employee.id})}"
+                      th:if="${employee.status.name() == 'ACTIVE'}"
+                    >
+                      <button class="button danger" type="submit">
+                        Deactivate
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <nav class="pagination" th:if="${page.totalPages > 1}">
-            <a class="page-link"
-               th:if="${page.page > 0}"
-               th:href="@{/employees(likeName=${filter.likeName},departmentId=${filter.departmentId},position=${filter.position},status=${filter.status},startDateFrom=${filter.startDateFrom},startDateTo=${filter.startDateTo},sortBy=${filter.sortBy},sortDirection=${filter.sortDirection},page=${page.page - 1},size=${page.size})}">Prev</a>
-            <a class="page-link"
-               th:each="pageNumber : ${#numbers.sequence(0, page.totalPages - 1)}"
-               th:classappend="${pageNumber == page.page} ? 'current'"
-               th:href="@{/employees(likeName=${filter.likeName},departmentId=${filter.departmentId},position=${filter.position},status=${filter.status},startDateFrom=${filter.startDateFrom},startDateTo=${filter.startDateTo},sortBy=${filter.sortBy},sortDirection=${filter.sortDirection},page=${pageNumber},size=${page.size})}"
-               th:text="${pageNumber + 1}">1</a>
-            <a class="page-link"
-               th:if="${page.page + 1 < page.totalPages}"
-               th:href="@{/employees(likeName=${filter.likeName},departmentId=${filter.departmentId},position=${filter.position},status=${filter.status},startDateFrom=${filter.startDateFrom},startDateTo=${filter.startDateTo},sortBy=${filter.sortBy},sortDirection=${filter.sortDirection},page=${page.page + 1},size=${page.size})}">Next</a>
+          <a
+            class="page-link"
+            th:if="${page.page > 0}"
+            th:href="@{/employees(likeName=${filter.likeName},departmentId=${filter.departmentId},position=${filter.position},status=${filter.status},startDateFrom=${filter.startDateFrom},startDateTo=${filter.startDateTo},sortBy=${filter.sortBy},sortDirection=${filter.sortDirection},page=${page.page - 1},size=${page.size})}"
+            >Prev</a
+          >
+          <a
+            class="page-link"
+            th:each="pageNumber : ${#numbers.sequence(0, page.totalPages - 1)}"
+            th:classappend="${pageNumber == page.page} ? 'current'"
+            th:href="@{/employees(likeName=${filter.likeName},departmentId=${filter.departmentId},position=${filter.position},status=${filter.status},startDateFrom=${filter.startDateFrom},startDateTo=${filter.startDateTo},sortBy=${filter.sortBy},sortDirection=${filter.sortDirection},page=${pageNumber},size=${page.size})}"
+            th:text="${pageNumber + 1}"
+            >1</a
+          >
+          <a
+            class="page-link"
+            th:if="${page.page + 1 < page.totalPages}"
+            th:href="@{/employees(likeName=${filter.likeName},departmentId=${filter.departmentId},position=${filter.position},status=${filter.status},startDateFrom=${filter.startDateFrom},startDateTo=${filter.startDateTo},sortBy=${filter.sortBy},sortDirection=${filter.sortDirection},page=${page.page + 1},size=${page.size})}"
+            >Next</a
+          >
         </nav>
-    </section>
-</main>
-</body>
+      </section>
+    </main>
+  </body>
 </html>

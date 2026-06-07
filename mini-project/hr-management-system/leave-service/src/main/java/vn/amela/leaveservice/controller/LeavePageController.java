@@ -76,6 +76,9 @@ public class LeavePageController {
                            HttpServletRequest request,
                            Model model) {
         CurrentUser user = currentUserProvider.getCurrentUser(request);
+        if (user.isHr()) {
+            return "redirect:/leaves";
+        }
         PageResponse<LeaveResponse> leaves = leaveService.findMyLeaves(user, page, size);
         addSharedModel(model, user);
         model.addAttribute("leaves", leaves);

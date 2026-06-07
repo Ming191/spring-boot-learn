@@ -1,76 +1,97 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Leave detail</title>
-    <link rel="stylesheet" th:href="@{/leave/css/hr-views.css}">
-</head>
-<body>
-<main class="shell">
-    <header class="topbar">
+    <link rel="stylesheet" th:href="@{/leave/css/hr-views.css}" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
         <div>
-            <h1>Leave detail</h1>
-            <div class="muted" th:text="${leave.employeeName} + ' · ' + ${leave.employeeCode}">Employee</div>
+          <h1>Leave detail</h1>
+          <div
+            class="muted"
+            th:text="${leave.employeeName} + ' · ' + ${leave.employeeCode}"
+          >
+            Employee
+          </div>
         </div>
-        <nav class="nav">
-            <a class="button secondary" th:href="@{/leaves/my}">My leaves</a>
-            <a class="button secondary" th:if="${isHr}" th:href="@{/leaves}">All leaves</a>
-        </nav>
-    </header>
+        <div class="nav" th:replace="~{fragments/nav :: mainNav}"></div>
+      </header>
 
-    <div class="flash" th:if="${success}" th:text="${success}"></div>
+      <div class="flash" th:if="${success}" th:text="${success}"></div>
 
-    <section class="panel">
+      <section class="panel">
         <div class="detail-grid">
-            <div class="detail-card">
-                <span class="muted">Status</span>
-                <strong>
-                    <span class="badge" th:classappend="${leave.status}" th:text="${leave.status}">PENDING</span>
-                </strong>
-            </div>
-            <div class="detail-card">
-                <span class="muted">Type</span>
-                <strong th:text="${leave.leaveType}">ANNUAL</strong>
-            </div>
-            <div class="detail-card">
-                <span class="muted">From</span>
-                <strong th:text="${leave.fromDate}"></strong>
-            </div>
-            <div class="detail-card">
-                <span class="muted">To</span>
-                <strong th:text="${leave.toDate}"></strong>
-            </div>
-            <div class="detail-card">
-                <span class="muted">Total days</span>
-                <strong th:text="${leave.totalDays}"></strong>
-            </div>
-            <div class="detail-card">
-                <span class="muted">Department</span>
-                <strong th:text="${leave.departmentName}"></strong>
-            </div>
+          <div class="detail-card">
+            <span class="muted">Status</span>
+            <strong>
+              <span
+                class="badge"
+                th:classappend="${leave.status}"
+                th:text="${leave.status}"
+                >PENDING</span
+              >
+            </strong>
+          </div>
+          <div class="detail-card">
+            <span class="muted">Type</span>
+            <strong th:text="${leave.leaveType}">ANNUAL</strong>
+          </div>
+          <div class="detail-card">
+            <span class="muted">From</span>
+            <strong th:text="${leave.fromDate}"></strong>
+          </div>
+          <div class="detail-card">
+            <span class="muted">To</span>
+            <strong th:text="${leave.toDate}"></strong>
+          </div>
+          <div class="detail-card">
+            <span class="muted">Total days</span>
+            <strong th:text="${leave.totalDays}"></strong>
+          </div>
+          <div class="detail-card">
+            <span class="muted">Department</span>
+            <strong th:text="${leave.departmentName}"></strong>
+          </div>
         </div>
 
         <div class="review-box">
-            <div>
-                <span class="muted">Reason</span>
-                <p th:text="${leave.reason}">Reason</p>
-            </div>
-            <div th:if="${leave.reviewerNote != null}">
-                <span class="muted">Reviewer note</span>
-                <p th:text="${leave.reviewerNote}"></p>
-            </div>
+          <div>
+            <span class="muted">Reason</span>
+            <p th:text="${leave.reason}">Reason</p>
+          </div>
+          <div th:if="${leave.reviewerNote != null}">
+            <span class="muted">Reviewer note</span>
+            <p th:text="${leave.reviewerNote}"></p>
+          </div>
         </div>
 
-        <div class="review-box actions" th:if="${leave.status.name() == 'PENDING'}">
-            <a class="button" th:if="${isHr}" th:href="@{/leaves/{id}/review(id=${leave.id})}">
-                Review request
-            </a>
-            <form th:if="${canCancel}" method="post" th:action="@{/leaves/{id}/cancel(id=${leave.id})}" class="actions">
-                <button class="button secondary" type="submit">Cancel request</button>
-            </form>
+        <div
+          class="review-box actions"
+          th:if="${leave.status.name() == 'PENDING'}"
+        >
+          <a
+            class="button"
+            th:if="${isHr}"
+            th:href="@{/leaves/{id}/review(id=${leave.id})}"
+          >
+            Review request
+          </a>
+          <form
+            th:if="${canCancel}"
+            method="post"
+            th:action="@{/leaves/{id}/cancel(id=${leave.id})}"
+            class="actions"
+          >
+            <button class="button secondary" type="submit">
+              Cancel request
+            </button>
+          </form>
         </div>
-    </section>
-</main>
-</body>
+      </section>
+    </main>
+  </body>
 </html>

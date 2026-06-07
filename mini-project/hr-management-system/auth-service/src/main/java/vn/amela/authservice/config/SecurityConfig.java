@@ -41,6 +41,7 @@ public class SecurityConfig {
                     "/api/auth/register",
                     "/api/auth/login",
                     "/api/auth/refresh",
+                    "/internal/**",
                     "/actuator/health",
                     "/actuator/info"
                 ).permitAll()
